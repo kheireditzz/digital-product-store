@@ -1353,7 +1353,56 @@
       renderProducts();
       initSlider();
       initScrollReveal();
+      initAutoPrewarm();
     });
+
+    // ================= INSTANT QRIS PRE-WARM & CACHE ENGINE =================
+    const qrisCache = new Map();
+    const qrisFetching = new Map();
+
+    async function prewarmQRIS(productId) {
+      if (qrisCache.has(productId) || qrisFetching.get(productId)) return;
+      const product = PRODUCTS.find(p => p.id === productId);
+      if (!product) return;
+
+      qrisFetching.set(productId, true);
+      try {
+        const custName  = document.getElementById('cust-name')?.value || 'Pembeli Resmi';
+        const custEmail = document.getElementById('cust-email')?.value || 'pembeli@kheireditz.com';
+
+        const res = await fetch('/api/v1/invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product_id: product.id,
+            product_title: product.title,
+            amount: product.price,
+            cust_name: custName,
+            user_email: custEmail
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.invoice_id) {
+          // Preload QRIS barcode into memory & browser cache
+          const img = new Image();
+          img.src = data.qris_image;
+          data.preloadedImg = img;
+          qrisCache.set(productId, data);
+        }
+      } catch (err) {
+        console.warn("Prewarm for product", productId, err);
+      } finally {
+        qrisFetching.set(productId, false);
+      }
+    }
+
+    function initAutoPrewarm() {
+      setTimeout(() => {
+        PRODUCTS.forEach((p, idx) => {
+          setTimeout(() => prewarmQRIS(p.id), idx * 500);
+        });
+      }, 500);
+    }
 
     // ================= SCROLL REVEAL OBSERVER =================
     function initScrollReveal() {
@@ -1397,7 +1446,7 @@
 
       empty.classList.add('hidden');
       grid.innerHTML = filtered.map((product, idx) => `
-        <div class="clean-card rounded-xl p-3 sm:p-4 flex flex-col justify-between group reveal-on-scroll ${idx % 2 === 1 ? 'reveal-delay-1' : ''}">
+        <div class="clean-card rounded-xl p-3 sm:p-4 flex flex-col justify-between group reveal-on-scroll ${idx % 2 === 1 ? 'reveal-delay-1' : ''}" onmouseenter="prewarmQRIS(${product.id})" ontouchstart="prewarmQRIS(${product.id})">
           <div>
             <!-- Image & Badges -->
             <div class="relative aspect-[16/10] rounded-lg overflow-hidden bg-surface-base mb-2.5 cursor-pointer border border-surface-border" onclick="openProductDetail(${product.id})">
@@ -1440,7 +1489,7 @@
                 <i data-lucide="info" class="w-3 h-3 text-slate-300"></i>
                 <span>Detail</span>
               </button>
-              <button onclick="directBuyQRIS(${product.id})" class="flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg btn-primary text-[10px] sm:text-xs font-semibold flex items-center justify-center gap-1">
+              <button onclick="directBuyQRIS(${product.id})" onmouseenter="prewarmQRIS(${product.id})" class="flex-1 sm:flex-none px-2.5 py-1.5 rounded-lg btn-primary text-[10px] sm:text-xs font-semibold flex items-center justify-center gap-1">
                 <i data-lucide="qr-code" class="w-3 h-3"></i>
                 <span>Beli</span>
               </button>
@@ -1479,7 +1528,7 @@
       }
     }
 
-    // ================= DIRECT BUY QRIS FLOW (OFFICIAL GATEWAY) =================
+    // ================= DIRECT BUY QRIS FLOW (INSTANT REAL-TIME DISPLAY) =================
     let currentInvoiceId = null;
     let invoicePollInterval = null;
 
@@ -1490,13 +1539,8 @@
       selectedProductForCheckout = product;
 
       document.getElementById('checkout-product-title').innerText = product.title;
-      document.getElementById('checkout-inv-id').innerText = 'Membuat...';
       document.getElementById('checkout-total-amount').innerText = formatRupiah(product.price);
       document.getElementById('checkout-breakdown').innerText = `Harga: ${formatRupiah(product.price)}`;
-      
-      // Show loading spinner for QRIS
-      document.getElementById('checkout-qris-loading').classList.remove('hidden');
-      document.getElementById('checkout-qris-container').classList.add('hidden');
 
       if (currentUser) {
         document.getElementById('cust-name').value = currentUser.name;
@@ -1507,7 +1551,35 @@
       checkAndLockBodyScroll();
       lucide.createIcons();
 
-      // Request real QRIS Invoice from backend
+      // Check if we have a pre-warmed ready QRIS invoice (0ms INSTANT!)
+      if (qrisCache.has(id)) {
+        const cached = qrisCache.get(id);
+        qrisCache.delete(id); // Use this pre-warmed invoice
+
+        currentInvoiceId = cached.invoice_id;
+        document.getElementById('checkout-inv-id').innerText = cached.invoice_id;
+        document.getElementById('checkout-total-amount').innerText = formatRupiah(cached.total);
+        document.getElementById('checkout-breakdown').innerText = `Harga ${formatRupiah(cached.amount)} + Fee QRIS ${formatRupiah(cached.fee)}`;
+
+        const qrisImg = document.getElementById('checkout-qris-img');
+        qrisImg.src = cached.qris_image;
+
+        // INSTANT DISPLAY WITH NO WAITING!
+        document.getElementById('checkout-qris-loading').classList.add('hidden');
+        document.getElementById('checkout-qris-container').classList.remove('hidden');
+
+        startInvoicePolling(cached.invoice_id);
+
+        // Prewarm the next fresh invoice in background
+        setTimeout(() => prewarmQRIS(id), 3000);
+        return;
+      }
+
+      // If cache missed, load dynamically
+      document.getElementById('checkout-inv-id').innerText = 'Membuat...';
+      document.getElementById('checkout-qris-loading').classList.remove('hidden');
+      document.getElementById('checkout-qris-container').classList.add('hidden');
+
       try {
         const custName  = document.getElementById('cust-name').value || 'Pembeli Resmi';
         const custEmail = document.getElementById('cust-email').value || 'pembeli@kheireditz.com';
@@ -1537,13 +1609,11 @@
           };
           qrisImg.src = data.qris_image;
 
-          // Instant display if cached or fast load
           if (qrisImg.complete) {
             document.getElementById('checkout-qris-loading').classList.add('hidden');
             document.getElementById('checkout-qris-container').classList.remove('hidden');
           }
 
-          // Start Realtime Auto-Polling (checks live payment status every 2.5s)
           startInvoicePolling(data.invoice_id);
         } else {
           throw new Error(data.error || "Gagal membuat invoice");
