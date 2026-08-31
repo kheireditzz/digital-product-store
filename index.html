@@ -1057,22 +1057,17 @@
             <span id="checkout-breakdown">Harga Rp 0 + Fee Rp 0</span>
           </div>
 
-          <div id="checkout-status-badge" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-mono bg-orange-50 text-orange-700 border border-orange-200">
-            <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping"></span>
-            <span>Menunggu Pembayaran QRIS...</span>
+          <div id="checkout-status-badge" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono bg-orange-50 text-orange-700 border border-orange-200">
+            <span class="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+            <span>Menunggu Pembayaran Realtime...</span>
           </div>
         </div>
       </div>
 
       <div class="space-y-2">
-        <button onclick="checkPaymentStatusManual()" class="w-full py-2 rounded-lg bg-surface-elevated hover:bg-surface-border text-white text-xs font-semibold flex items-center justify-center gap-1.5 border border-surface-border transition-colors">
-          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-orange-400"></i>
-          <span>Periksa Status Pembayaran</span>
-        </button>
-
-        <button onclick="simulatePaymentSuccess()" class="w-full py-2 rounded-lg btn-primary text-xs font-semibold flex items-center justify-center gap-2 shadow-md">
-          <i data-lucide="check-circle" class="w-4 h-4"></i>
-          <span>Konfirmasi Selesai / Tes Instan</span>
+        <button onclick="checkPaymentStatusManual()" class="w-full py-2.5 rounded-xl btn-primary text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-orange-500/20">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Saya Sudah Membayar &bull; Cek Status</span>
         </button>
       </div>
     </div>
@@ -1536,20 +1531,22 @@
           document.getElementById('checkout-breakdown').innerText = `Harga ${formatRupiah(data.amount)} + Fee QRIS ${formatRupiah(data.fee)}`;
           
           const qrisImg = document.getElementById('checkout-qris-img');
-          qrisImg.src = data.qris_image;
-          
           qrisImg.onload = () => {
             document.getElementById('checkout-qris-loading').classList.add('hidden');
             document.getElementById('checkout-qris-container').classList.remove('hidden');
           };
-          // Fallback if image already cached
-          setTimeout(() => {
+          qrisImg.src = data.qris_image;
+
+          // Instant display if cached or fast load
+          if (qrisImg.complete) {
             document.getElementById('checkout-qris-loading').classList.add('hidden');
             document.getElementById('checkout-qris-container').classList.remove('hidden');
-          }, 400);
+          }
 
-          // Start Realtime Auto-Polling (checks payment status every 3.5s)
+          // Start Realtime Auto-Polling (checks live payment status every 2.5s)
           startInvoicePolling(data.invoice_id);
+        } else {
+          throw new Error(data.error || "Gagal membuat invoice");
         }
       } catch (err) {
         console.error("Gagal buat invoice:", err);
@@ -1572,9 +1569,9 @@
             handlePaymentSuccess(data);
           }
         } catch (e) {
-          console.log("Polling error:", e);
+          console.log("Polling check:", e);
         }
-      }, 3500);
+      }, 2500);
     }
 
     function stopInvoicePolling() {
@@ -1586,7 +1583,7 @@
 
     async function checkPaymentStatusManual() {
       if (!currentInvoiceId) return showToast("Peringatan", "Tagihan belum siap.");
-      showToast("Memeriksa...", "Mengecek status verifikasi pembayaran QRIS...");
+      showToast("Memeriksa...", "Mengecek status verifikasi pembayaran real-time...");
       try {
         const res = await fetch(`/api/v1/invoice/status?invoice_id=${encodeURIComponent(currentInvoiceId)}`);
         const data = await res.json();
@@ -1594,40 +1591,10 @@
           stopInvoicePolling();
           handlePaymentSuccess(data);
         } else {
-          showToast("Status Tagihan", `Tagihan ${currentInvoiceId} masih menunggu pembayaran QRIS.`);
+          showToast("Status Tagihan", `Tagihan ${currentInvoiceId} masih menunggu pembayaran.`);
         }
       } catch (e) {
-        showToast("Gagal", "Gagal memeriksa status pembayaran.");
-      }
-    }
-
-    async function simulatePaymentSuccess() {
-      const custName = document.getElementById('cust-name').value || 'Pembeli Resmi';
-      const custEmail = document.getElementById('cust-email').value || 'pembeli@kheireditz.com';
-      const prod = selectedProductForCheckout || { id: 1, title: 'Produk Digital Kheireditz', price: 149000 };
-
-      try {
-        const response = await fetch('/api/v1/invoice/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            invoice_id: currentInvoiceId,
-            product_id: prod.id,
-            product_title: prod.title,
-            amount: prod.price,
-            user_email: custEmail,
-            cust_name: custName
-          })
-        });
-        const data = await response.json();
-        stopInvoicePolling();
-        handlePaymentSuccess(data);
-      } catch (err) {
-        closeCheckoutModal();
-        const randStr = () => Math.random().toString(36).substring(2, 6).toUpperCase();
-        document.getElementById('generated-license').innerText = `CVLT-${randStr()}-${randStr()}-${randStr()}`;
-        document.getElementById('success-modal').classList.remove('hidden');
-        checkAndLockBodyScroll();
+        showToast("Gagal", "Gagal memeriksa status pembayaran ke gateway.");
       }
     }
 
