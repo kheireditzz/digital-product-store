@@ -68,6 +68,12 @@
     ::-webkit-scrollbar-thumb { background: #282b3d; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #f97316; }
 
+    .overflow-x-auto {
+      overscroll-behavior-x: contain !important;
+      -webkit-overflow-scrolling: touch !important;
+      touch-action: pan-x pan-y !important;
+    }
+
     .clean-card {
       background: #12131a;
       border: 1px solid #282b3d;
@@ -745,27 +751,61 @@
       slideToSection(currentSlideIndex - 1);
     }
 
-    // Touch Swipe Gesture Support for Mobile & Tablet
+    // Touch Swipe Gesture Support for Mobile & Tablet (With Strict Scrollable Container Isolation)
     function initTouchSwipe() {
       const area = document.getElementById('slider-touch-area');
       if (!area) return;
 
       let touchStartX = 0;
+      let touchStartY = 0;
       let touchEndX = 0;
+      let touchEndY = 0;
+      let isInsideScrollable = false;
 
       area.addEventListener('touchstart', (e) => {
+        const target = e.target;
+        // Ignore swipe if inside tables, horizontal scroll containers, forms, modals, or inputs
+        const scrollableContainer = target.closest('.overflow-x-auto, table, thead, tbody, tr, td, th, input, textarea, select, .modal-overlay, form, button');
+        
+        // Also check if any parent is horizontally scrollable
+        let el = target;
+        let hasHScroll = false;
+        while (el && el !== area) {
+          if (el.scrollWidth > el.clientWidth && ['auto', 'scroll'].includes(window.getComputedStyle(el).overflowX)) {
+            hasHScroll = true;
+            break;
+          }
+          el = el.parentElement;
+        }
+
+        if (scrollableContainer || hasHScroll) {
+          isInsideScrollable = true;
+          return;
+        }
+
+        isInsideScrollable = false;
         touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
       }, { passive: true });
 
       area.addEventListener('touchend', (e) => {
+        if (isInsideScrollable) {
+          isInsideScrollable = false;
+          return;
+        }
+
         touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
         handleSwipeGesture();
       }, { passive: true });
 
       function handleSwipeGesture() {
-        const diff = touchStartX - touchEndX;
-        if (Math.abs(diff) > 55) {
-          if (diff > 0) {
+        const diffX = touchStartX - touchEndX;
+        const diffY = touchStartY - touchEndY;
+
+        // Ensure horizontal intent and prevent accidental triggers during vertical scroll
+        if (Math.abs(diffX) > 75 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+          if (diffX > 0) {
             nextSlide(); // Swiped left -> go to next
           } else {
             prevSlide(); // Swiped right -> go to previous
