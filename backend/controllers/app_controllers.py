@@ -143,46 +143,39 @@ class ProductController:
         search   = params.get('search', [''])[0].strip().lower()
         category = params.get('category', [''])[0].strip().lower()
         sort     = params.get('sort', ['id'])[0]
+        status   = params.get('status', ['all'])[0].strip().lower()
 
-        # 1. Try Supabase Cloud
-        if SupabaseService.is_configured():
-            sb_prods, status = SupabaseService.list_products()
-            if status == 200 and isinstance(sb_prods, list) and len(sb_prods) > 0:
-                filtered = sb_prods
-                if search:
-                    filtered = [p for p in filtered if search in p.get('title','').lower() or search in p.get('description','').lower() or search in p.get('category','').lower()]
-                if category and category != 'all':
-                    filtered = [p for p in filtered if p.get('category','').lower() == category]
-                return {"success": True, "count": len(filtered), "products": filtered, "source": "supabase"}, 200
-
-        # 2. Fallback to SQLite Local
-        allowed_sorts = {'id', 'price', 'rating', 'reviews'}
+        allowed_sorts = {'id', 'price', 'rating', 'reviews', 'created_at', 'sort_order'}
         order = sort if sort in allowed_sorts else 'id'
 
         conn = get_db_connection()
         c = conn.cursor()
         query  = "SELECT * FROM products WHERE 1=1"
         args   = []
+
+        if status == 'active':
+            query += " AND active = 1"
+        elif status == 'inactive':
+            query += " AND active = 0"
+
         if search:
-            query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(category) LIKE ?)"
+            query += " AND (LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(category) LIKE ? OR LOWER(tags) LIKE ? OR LOWER(stack) LIKE ?)"
             s = f'%{search}%'
-            args += [s, s, s]
+            args += [s, s, s, s, s]
+
         if category and category != 'all':
             query += " AND LOWER(category) = ?"
             args.append(category)
+
         query += f" ORDER BY {order} ASC"
         c.execute(query, args)
         products = [dict(row) for row in c.fetchall()]
         conn.close()
+
         return {"success": True, "count": len(products), "products": products, "source": "sqlite"}, 200
 
     @staticmethod
     def get_by_id(prod_id):
-        if SupabaseService.is_configured():
-            prod = SupabaseService.get_product(prod_id)
-            if prod:
-                return {"success": True, "product": prod, "source": "supabase"}, 200
-
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT * FROM products WHERE id = ?", (prod_id,))
@@ -190,94 +183,141 @@ class ProductController:
         conn.close()
         if prod:
             return {"success": True, "product": dict(prod), "source": "sqlite"}, 200
+
+        # Fallback to Supabase
+        if SupabaseService.is_configured():
+            sb_prod = SupabaseService.get_product(prod_id)
+            if sb_prod:
+                return {"success": True, "product": sb_prod, "source": "supabase"}, 200
+
         return {"error": "Produk tidak ditemukan"}, 404
 
     @staticmethod
     def create(body):
-        required = ['title', 'category', 'price', 'original_price', 'description', 'stack']
+        required = ['title', 'category', 'price', 'description']
         for f in required:
-            if not body.get(f):
+            if not body.get(f) and body.get(f) != 0:
                 return {"error": f"Field '{f}' wajib diisi"}, 400
 
+        price = int(body.get('price', 0))
+        orig_price = int(body.get('original_price', price) or price)
+
         prod_data = {
-            "title": body['title'],
-            "category": body['category'],
-            "price": int(body['price']),
-            "original_price": int(body['original_price']),
-            "rating": float(body.get('rating', 4.5)),
-            "reviews": int(body.get('reviews', 0)),
-            "badge": body.get('badge', 'NEW'),
-            "description": body['description'],
-            "stack": body['stack']
+            "title": str(body.get('title', '')).strip(),
+            "category": str(body.get('category', 'saas')).strip().lower(),
+            "price": price,
+            "original_price": orig_price,
+            "rating": float(body.get('rating', 4.9)),
+            "reviews": int(body.get('reviews', 12)),
+            "badge": str(body.get('badge', 'PRO')).strip(),
+            "description": str(body.get('description', '')).strip(),
+            "stack": str(body.get('stack', '')).strip(),
+            "image": str(body.get('image', '')).strip() or "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80",
+            "file_url": str(body.get('file_url', '')).strip(),
+            "demo_url": str(body.get('demo_url', '')).strip(),
+            "license_type": str(body.get('license_type', 'Komersial')).strip(),
+            "tags": str(body.get('tags', '')).strip(),
+            "featured": int(body.get('featured', 0)),
+            "active": int(body.get('active', 1))
         }
 
-        # 1. Supabase Cloud Sync (Primary)
+        # 1. SQLite Local (Primary & Full-Rich Storage)
         new_id = None
-        if SupabaseService.is_configured():
-            res, status = SupabaseService.insert_product(prod_data)
-            if isinstance(res, list) and len(res) > 0 and 'id' in res[0]:
-                new_id = res[0]['id']
-
-        # 2. SQLite Local Sync (Fallback)
         try:
             conn = get_db_connection()
             c = conn.cursor()
             c.execute('''
-                INSERT INTO products (title, category, price, original_price, rating, reviews, badge, description, stack)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO products 
+                (title, category, price, original_price, rating, reviews, badge, description, stack, image, file_url, demo_url, license_type, tags, featured, active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 prod_data['title'], prod_data['category'],
                 prod_data['price'], prod_data['original_price'],
                 prod_data['rating'], prod_data['reviews'],
-                prod_data['badge'], prod_data['description'], prod_data['stack']
+                prod_data['badge'], prod_data['description'], prod_data['stack'],
+                prod_data['image'], prod_data['file_url'], prod_data['demo_url'],
+                prod_data['license_type'], prod_data['tags'],
+                prod_data['featured'], prod_data['active']
             ))
             conn.commit()
-            if not new_id:
-                new_id = c.lastrowid
+            new_id = c.lastrowid
             conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            return {"error": f"Gagal menyimpan ke database: {str(e)}"}, 500
 
-        return {"success": True, "message": "Produk berhasil ditambahkan", "id": new_id or 1}, 201
+        # 2. Supabase Sync (Safe Columns Only)
+        if SupabaseService.is_configured():
+            try:
+                sb_payload = {
+                    "title": prod_data['title'],
+                    "category": prod_data['category'],
+                    "price": prod_data['price'],
+                    "original_price": prod_data['original_price'],
+                    "rating": prod_data['rating'],
+                    "reviews": prod_data['reviews'],
+                    "badge": prod_data['badge'],
+                    "description": prod_data['description'],
+                    "stack": prod_data['stack']
+                }
+                SupabaseService.insert_product(sb_payload)
+            except Exception:
+                pass
+
+        prod_data['id'] = new_id
+        return {"success": True, "message": "Produk berhasil ditambahkan", "id": new_id, "product": prod_data}, 201
 
     @staticmethod
     def update(prod_id, body):
-        if SupabaseService.is_configured():
-            SupabaseService.update_product(prod_id, body)
+        allowed_keys = [
+            'title', 'category', 'price', 'original_price', 'rating', 'reviews',
+            'badge', 'description', 'stack', 'image', 'file_url', 'demo_url',
+            'license_type', 'tags', 'featured', 'active'
+        ]
 
-        try:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT id FROM products WHERE id = ?", (prod_id,))
-            if c.fetchone():
-                fields, vals = [], []
-                for key in ['title', 'category', 'price', 'original_price', 'rating', 'reviews', 'badge', 'description', 'stack']:
-                    if key in body:
-                        fields.append(f"{key} = ?")
-                        vals.append(body[key])
-                if fields:
-                    vals.append(prod_id)
-                    c.execute(f"UPDATE products SET {', '.join(fields)} WHERE id = ?", vals)
-                    conn.commit()
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM products WHERE id = ?", (prod_id,))
+        if not c.fetchone():
             conn.close()
-        except Exception:
-            pass
+            return {"error": "Produk tidak ditemukan"}, 404
+
+        fields, vals = [], []
+        for key in allowed_keys:
+            if key in body:
+                fields.append(f"{key} = ?")
+                vals.append(body[key])
+
+        if fields:
+            vals.append(prod_id)
+            c.execute(f"UPDATE products SET {', '.join(fields)} WHERE id = ?", vals)
+            conn.commit()
+        conn.close()
+
+        # Sync safe fields to Supabase
+        if SupabaseService.is_configured():
+            try:
+                sb_safe_keys = {'title', 'category', 'price', 'original_price', 'rating', 'reviews', 'badge', 'description', 'stack'}
+                sb_body = {k: v for k, v in body.items() if k in sb_safe_keys}
+                if sb_body:
+                    SupabaseService.update_product(prod_id, sb_body)
+            except Exception:
+                pass
 
         return {"success": True, "message": "Produk berhasil diperbarui"}, 200
 
     @staticmethod
     def delete(prod_id):
-        if SupabaseService.is_configured():
-            SupabaseService.delete_product(prod_id)
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM products WHERE id = ?", (prod_id,))
+        conn.commit()
+        conn.close()
 
-        try:
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("DELETE FROM products WHERE id = ?", (prod_id,))
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
+        if SupabaseService.is_configured():
+            try:
+                SupabaseService.delete_product(prod_id)
+            except Exception:
+                pass
 
         return {"success": True, "message": "Produk berhasil dihapus"}, 200
 
@@ -449,6 +489,8 @@ class InvoiceController:
 
     @staticmethod
     def confirm(body):
+        if not body or not isinstance(body, dict):
+            body = {}
         inv_id     = body.get('invoice_id', '').strip()
         prod_id    = int(body.get('product_id', 1))
         prod_title = body.get('product_title', 'Produk Digital')
@@ -612,6 +654,215 @@ class AdminController:
 
 
 # ─────────────────────────────────────────
+# BANNER & SLIDER CONTROLLER
+# ─────────────────────────────────────────
+class BannerController:
+    DEFAULT_BANNERS = [
+        {
+            "id": 1,
+            "title": "OmniAI Multi-Model SaaS Platform",
+            "subtitle": "Komersial Starter Kit Next.js 15, FastAPI & Stripe",
+            "badge": "BESTSELLER",
+            "badge_color": "orange",
+            "cta_text": "Beli Sekarang",
+            "cta_link": "#katalog",
+            "image": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80",
+            "active": 1,
+            "sort_order": 1
+        },
+        {
+            "id": 2,
+            "title": "FinTech 3D UI/UX Master System",
+            "subtitle": "500+ Komponen Figma, Tailwind CSS & Source Code",
+            "badge": "NEW RELEASE",
+            "badge_color": "purple",
+            "cta_text": "Lihat Katalog",
+            "cta_link": "#katalog",
+            "image": "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&auto=format&fit=crop&q=80",
+            "active": 1,
+            "sort_order": 2
+        },
+        {
+            "id": 3,
+            "title": "CloudPOS Modern Point of Sales & PWA",
+            "subtitle": "Aplikasi Kasir Multi-Outlet dengan Supabase Sync",
+            "badge": "SPECIAL OFFER",
+            "badge_color": "emerald",
+            "cta_text": "Dapatkan Lisensi",
+            "cta_link": "#katalog",
+            "image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&auto=format&fit=crop&q=80",
+            "active": 1,
+            "sort_order": 3
+        }
+    ]
+
+    @staticmethod
+    def list_banners(params=None):
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM banners ORDER BY sort_order ASC, id ASC")
+            rows = [dict(r) for r in c.fetchall()]
+            conn.close()
+            if rows:
+                return {"success": True, "count": len(rows), "banners": rows, "source": "sqlite"}, 200
+        except Exception:
+            pass
+
+        return {"success": True, "count": len(BannerController.DEFAULT_BANNERS), "banners": BannerController.DEFAULT_BANNERS, "source": "default"}, 200
+
+    @staticmethod
+    def create(body):
+        banner_data = {
+            "title": str(body.get('title', 'Banner Promo Baru')).strip(),
+            "subtitle": str(body.get('subtitle', '')).strip(),
+            "badge": str(body.get('badge', 'PROMO')).strip(),
+            "badge_color": str(body.get('badge_color', 'orange')).strip(),
+            "cta_text": str(body.get('cta_text', 'Beli Sekarang')).strip(),
+            "cta_link": str(body.get('cta_link', '#katalog')).strip(),
+            "image": str(body.get('image', '')).strip() or "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80",
+            "active": int(body.get('active', 1)),
+            "sort_order": int(body.get('sort_order', 0))
+        }
+
+        new_id = None
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO banners (title, subtitle, badge, badge_color, cta_text, cta_link, image, active, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                banner_data['title'], banner_data['subtitle'],
+                banner_data['badge'], banner_data['badge_color'],
+                banner_data['cta_text'], banner_data['cta_link'],
+                banner_data['image'], banner_data['active'], banner_data['sort_order']
+            ))
+            conn.commit()
+            new_id = c.lastrowid
+            conn.close()
+        except Exception as e:
+            return {"error": f"Gagal menyimpan banner: {str(e)}"}, 500
+
+        banner_data['id'] = new_id
+        return {"success": True, "message": "Banner berhasil ditambahkan", "id": new_id, "banner": banner_data}, 201
+
+    @staticmethod
+    def update(banner_id, body):
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT id FROM banners WHERE id = ?", (banner_id,))
+        if not c.fetchone():
+            conn.close()
+            return {"error": "Banner tidak ditemukan"}, 404
+
+        fields, vals = [], []
+        for key in ['title', 'subtitle', 'badge', 'badge_color', 'cta_text', 'cta_link', 'image', 'active', 'sort_order']:
+            if key in body:
+                fields.append(f"{key} = ?")
+                vals.append(body[key])
+
+        if fields:
+            vals.append(banner_id)
+            c.execute(f"UPDATE banners SET {', '.join(fields)} WHERE id = ?", vals)
+            conn.commit()
+        conn.close()
+
+        return {"success": True, "message": "Banner berhasil diperbarui"}, 200
+
+    @staticmethod
+    def delete(banner_id):
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("DELETE FROM banners WHERE id = ?", (banner_id,))
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "message": "Banner berhasil dihapus"}, 200
+
+
+# ─────────────────────────────────────────
+# SETTINGS & STORE CONFIG CONTROLLER
+# ─────────────────────────────────────────
+class SettingsController:
+    DEFAULT_SETTINGS = {
+        "store_name": "Kheireditz Produk Digital",
+        "tagline": "Ekosistem Aset & Source Code Developer Premium",
+        "announcement": "PROMO SPESIAL: Diskon Kilat hingga 75% • Garansi Lisensi Seumur Hidup & Update Gratis!",
+        "cs_whatsapp": "6281234567890",
+        "cs_email": "support@kheireditz.my.id",
+        "qris_fee_percent": 2.18,
+        "logo_url": "",
+        "hero_headline": "Aset & Source Code Digital Siap Produksi",
+        "hero_subheadline": "Pilih produk pada katalog di bawah ini, telaah rincian spesifikasi teknis, dan lakukan transaksi langsung melalui QRIS instan.",
+        "telegram_url": "",
+        "instagram_url": ""
+    }
+
+    @staticmethod
+    def get():
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM settings WHERE id = 1")
+            row = c.fetchone()
+            conn.close()
+            if row:
+                return {"success": True, "settings": dict(row), "source": "sqlite"}, 200
+        except Exception:
+            pass
+
+        return {"success": True, "settings": SettingsController.DEFAULT_SETTINGS, "source": "default"}, 200
+
+    @staticmethod
+    def update(body):
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT id FROM settings WHERE id = 1")
+            exists = c.fetchone()
+
+            allowed = [
+                'store_name', 'tagline', 'announcement', 'cs_whatsapp', 'cs_email',
+                'qris_fee_percent', 'logo_url', 'hero_headline', 'hero_subheadline',
+                'telegram_url', 'instagram_url'
+            ]
+
+            if exists:
+                fields, vals = [], []
+                for k in allowed:
+                    if k in body:
+                        fields.append(f"{k} = ?")
+                        vals.append(body[k])
+                if fields:
+                    vals.append(1)
+                    c.execute(f"UPDATE settings SET {', '.join(fields)} WHERE id = ?", vals)
+            else:
+                c.execute('''
+                    INSERT INTO settings 
+                    (id, store_name, tagline, announcement, cs_whatsapp, cs_email, qris_fee_percent, logo_url, hero_headline, hero_subheadline, telegram_url, instagram_url)
+                    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    body.get('store_name', 'Kheireditz Produk Digital'),
+                    body.get('tagline', 'Ekosistem Aset Digital'),
+                    body.get('announcement', 'Promo Spesial'),
+                    body.get('cs_whatsapp', '6281234567890'),
+                    body.get('cs_email', 'support@kheireditz.my.id'),
+                    float(body.get('qris_fee_percent', 2.18)),
+                    body.get('logo_url', ''),
+                    body.get('hero_headline', 'Aset & Source Code Digital Siap Produksi'),
+                    body.get('hero_subheadline', 'Pilih produk pada katalog di bawah ini...'),
+                    body.get('telegram_url', ''),
+                    body.get('instagram_url', '')
+                ))
+            conn.commit()
+            conn.close()
+            return {"success": True, "message": "Pengaturan toko berhasil diperbarui"}, 200
+        except Exception as e:
+            return {"error": f"Gagal memperbarui pengaturan: {str(e)}"}, 500
+
+
+# ─────────────────────────────────────────
 # WEBHOOK CONTROLLER
 # ─────────────────────────────────────────
 class WebhookController:
@@ -643,11 +894,14 @@ class WebhookController:
                 })
 
             # SQLite Local Sync
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("UPDATE invoices SET status='paid', license_key=?, paid_at=? WHERE id=?", (license_key, now, invoice_id))
-            conn.commit()
-            conn.close()
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("UPDATE invoices SET status='paid', license_key=?, paid_at=? WHERE id=?", (license_key, now, invoice_id))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
 
         return {
             "success":        True,

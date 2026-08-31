@@ -16,7 +16,9 @@ from backend.controllers.app_controllers import (
     ProductController,
     InvoiceController,
     AdminController,
-    WebhookController
+    WebhookController,
+    BannerController,
+    SettingsController
 )
 
 # Initialize database
@@ -26,6 +28,7 @@ except Exception as e:
     print("Database init:", e)
 
 RE_PRODUCT_ID = re.compile(r'^/api/v1/products/(\d+)$')
+RE_BANNER_ID  = re.compile(r'^/api/v1/banners/(\d+)$')
 
 class handler(BaseHTTPRequestHandler):
     def _cors_headers(self):
@@ -98,6 +101,14 @@ class handler(BaseHTTPRequestHandler):
             res, status = InvoiceController.create(params)
             return self.send_json(res, status)
 
+        elif path == '/api/v1/banners':
+            res, status = BannerController.list_banners()
+            return self.send_json(res, status)
+
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.get()
+            return self.send_json(res, status)
+
         elif path == '/api/v1/auth/profile':
             email = params.get('email', [''])[0].strip()
             res, status = AuthController.profile(email)
@@ -134,6 +145,10 @@ class handler(BaseHTTPRequestHandler):
             res, status = InvoiceController.confirm(body)
         elif path == '/api/v1/products':
             res, status = ProductController.create(body)
+        elif path == '/api/v1/banners':
+            res, status = BannerController.create(body)
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.update(body)
         elif path == '/api/v1/webhook':
             res, status = WebhookController.handle(raw, self.headers)
         else:
@@ -145,9 +160,14 @@ class handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
         body   = self._read_body()
-        m = RE_PRODUCT_ID.match(path)
-        if m:
-            res, status = ProductController.update(int(m.group(1)), body)
+        m_prod = RE_PRODUCT_ID.match(path)
+        m_ban  = RE_BANNER_ID.match(path)
+        if m_prod:
+            res, status = ProductController.update(int(m_prod.group(1)), body)
+        elif m_ban:
+            res, status = BannerController.update(int(m_ban.group(1)), body)
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.update(body)
         else:
             res, status = {"error": "Endpoint tidak ditemukan"}, 404
         return self.send_json(res, status)
@@ -155,9 +175,12 @@ class handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         parsed = urlparse(self.path)
         path   = parsed.path
-        m = RE_PRODUCT_ID.match(path)
-        if m:
-            res, status = ProductController.delete(int(m.group(1)))
+        m_prod = RE_PRODUCT_ID.match(path)
+        m_ban  = RE_BANNER_ID.match(path)
+        if m_prod:
+            res, status = ProductController.delete(int(m_prod.group(1)))
+        elif m_ban:
+            res, status = BannerController.delete(int(m_ban.group(1)))
         else:
             res, status = {"error": "Endpoint tidak ditemukan"}, 404
         return self.send_json(res, status)

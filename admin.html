@@ -3,12 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard — Kheireditz Produk Digital</title>
+  <title>Admin Dashboard Full — Kheireditz Produk Digital</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
   <script src="/frontend/assets/vendor/lucide.min.js"></script>
+  <!-- Cropper.js for Interactive Image Cropping & Editing -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -117,15 +120,15 @@
     }
 
     .modal-overlay {
-      background: rgba(9, 10, 14, 0.85);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: rgba(9, 10, 14, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       overscroll-behavior: contain !important;
       -webkit-overflow-scrolling: touch !important;
       touch-action: pan-y !important;
     }
 
-    /* ================= SMOOTH SLIDING VIEWPORT ENGINE ================= */
+    /* ================= SMOOTH SLIDING VIEWPORT ENGINE (6 SLIDES) ================= */
     .slider-viewport {
       width: 100%;
       overflow: hidden;
@@ -134,17 +137,17 @@
 
     .slider-track {
       display: flex;
-      width: 500%;
+      width: 600%;
       transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
       will-change: transform;
     }
 
     .slider-slide {
-      width: 20%;
-      min-width: 20%;
+      width: 16.666667%;
+      min-width: 16.666667%;
       flex-shrink: 0;
       opacity: 0.35;
-      transform: scale(0.98);
+      transform: scale(0.985);
       transition: opacity 0.4s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -153,7 +156,6 @@
       transform: scale(1);
     }
 
-    /* Sliding Navigation Pill Capsule */
     .nav-pill {
       position: relative;
       transition: all 0.25s ease;
@@ -164,6 +166,15 @@
       background: rgba(249, 115, 22, 0.15);
       border-color: rgba(249, 115, 22, 0.45);
       box-shadow: 0 0 15px rgba(249, 115, 22, 0.15);
+    }
+
+    /* Cropper Container Dark Style */
+    .cropper-view-box,
+    .cropper-face {
+      border-radius: 8px;
+    }
+    .cropper-line, .cropper-point {
+      background-color: #f97316;
     }
   </style>
 </head>
@@ -223,9 +234,9 @@
             <i data-lucide="crown" class="w-4 h-4 text-white"></i>
           </div>
           <div class="flex flex-col">
-            <span class="font-display font-bold text-sm text-white tracking-tight">Kheireditz <span class="text-orange-500">Admin</span></span>
+            <span class="font-display font-bold text-sm text-white tracking-tight">Kheireditz <span class="text-orange-500">Admin Pro</span></span>
             <span class="text-[9px] font-mono text-emerald-400 font-medium flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Supabase Cloud Online
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Cloud & Gateway Online
             </span>
           </div>
         </div>
@@ -250,41 +261,46 @@
 
       </div>
 
-      <!-- HORIZONTAL SLIDING TAB SELECTOR -->
+      <!-- HORIZONTAL SLIDING TAB SELECTOR (6 SECTIONS) -->
       <div class="border-t border-surface-border bg-surface-card/60 backdrop-blur-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-3">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3">
           
-          <!-- Sliding Tabs Carousel Nav -->
           <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 text-xs font-medium w-full sm:w-auto">
-            <button onclick="slideToSection(0)" id="pill-tab-0" class="nav-pill active flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+            <button onclick="slideToSection(0)" id="pill-tab-0" class="nav-pill active flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
               <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-orange-400"></i>
               <span>Ringkasan (KPI)</span>
             </button>
 
-            <button onclick="slideToSection(1)" id="pill-tab-1" class="nav-pill flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+            <button onclick="slideToSection(1)" id="pill-tab-1" class="nav-pill flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
               <i data-lucide="package" class="w-3.5 h-3.5 text-purple-400"></i>
               <span>Katalog Produk</span>
               <span id="badge-prod-count" class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-orange-400 border border-surface-border">6</span>
             </button>
 
-            <button onclick="slideToSection(2)" id="pill-tab-2" class="nav-pill flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+            <button onclick="slideToSection(2)" id="pill-tab-2" class="nav-pill flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+              <i data-lucide="image" class="w-3.5 h-3.5 text-pink-400"></i>
+              <span>Banner & Slider</span>
+              <span id="badge-banner-count" class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-pink-500/10 text-pink-400 border border-pink-500/30">3</span>
+            </button>
+
+            <button onclick="slideToSection(3)" id="pill-tab-3" class="nav-pill flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
               <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-400"></i>
               <span>Transaksi & QRIS</span>
               <span id="badge-inv-count" class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">0</span>
             </button>
 
-            <button onclick="slideToSection(3)" id="pill-tab-3" class="nav-pill flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+            <button onclick="slideToSection(4)" id="pill-tab-4" class="nav-pill flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
               <i data-lucide="users" class="w-3.5 h-3.5 text-sky-400"></i>
               <span>Pengguna</span>
             </button>
 
-            <button onclick="slideToSection(4)" id="pill-tab-4" class="nav-pill flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
-              <i data-lucide="server" class="w-3.5 h-3.5 text-amber-400"></i>
-              <span>Sistem & Gateway</span>
+            <button onclick="slideToSection(5)" id="pill-tab-5" class="nav-pill flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent text-slate-300 hover:text-white transition-all whitespace-nowrap">
+              <i data-lucide="sliders" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Pengaturan & Sistem</span>
             </button>
           </div>
 
-          <!-- Slide Navigator Arrows (Geser Kiri / Kanan) -->
+          <!-- Slide Navigator Arrows -->
           <div class="hidden sm:flex items-center gap-1.5 shrink-0">
             <button onclick="prevSlide()" class="p-1.5 rounded-lg btn-secondary text-slate-300 hover:text-white" title="Geser Kiri">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
@@ -298,7 +314,7 @@
       </div>
     </header>
 
-    <!-- ================= SLIDING MAIN CONTENT VIEWPORT ================= -->
+    <!-- ================= SLIDING MAIN CONTENT VIEWPORT (6 SLIDES) ================= -->
     <div class="flex-1 slider-viewport overflow-x-hidden" id="slider-touch-area">
       <div id="admin-slider-track" class="slider-track min-h-[calc(100vh-8rem)]">
 
@@ -309,7 +325,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
               <div>
                 <h2 class="text-xl font-bold font-display text-white">Ringkasan Eksekutif & Omset</h2>
-                <p class="text-xs text-slate-400">Pantau performa penjualan produk digital dan saldo gateway secara real-time.</p>
+                <p class="text-xs text-slate-400">Pantau performa penjualan produk digital, banner promo, dan saldo gateway.</p>
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
@@ -381,7 +397,7 @@
                     <i data-lucide="receipt" class="w-4 h-4 text-orange-400"></i>
                     <h3 class="font-display font-bold text-sm text-white">Transaksi QRIS Terbaru</h3>
                   </div>
-                  <button onclick="slideToSection(2)" class="text-xs text-orange-400 hover:underline flex items-center gap-1">
+                  <button onclick="slideToSection(3)" class="text-xs text-orange-400 hover:underline flex items-center gap-1">
                     <span>Lihat Semua</span>
                     <i data-lucide="arrow-right" class="w-3 h-3"></i>
                   </button>
@@ -396,7 +412,7 @@
               <div class="clean-card rounded-2xl p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-3 border-b border-surface-border">
                   <i data-lucide="sparkles" class="w-4 h-4 text-orange-400"></i>
-                  <h3 class="font-display font-bold text-sm text-white">Aksi & Pintasan</h3>
+                  <h3 class="font-display font-bold text-sm text-white">Aksi Cepat</h3>
                 </div>
 
                 <div class="space-y-2.5">
@@ -405,14 +421,14 @@
                     <span>Tambah Produk Baru</span>
                   </button>
 
-                  <button onclick="slideToSection(1)" class="w-full py-2.5 rounded-xl btn-secondary text-xs font-semibold flex items-center justify-center gap-2">
-                    <i data-lucide="package" class="w-4 h-4 text-purple-400"></i>
-                    <span>Buka Katalog Produk</span>
+                  <button onclick="openAddBannerModal()" class="w-full py-2.5 rounded-xl btn-secondary text-xs font-semibold flex items-center justify-center gap-2 text-pink-400 hover:text-pink-300">
+                    <i data-lucide="image-plus" class="w-4 h-4"></i>
+                    <span>Tambah Banner Slider</span>
                   </button>
 
-                  <button onclick="slideToSection(2)" class="w-full py-2.5 rounded-xl btn-secondary text-xs font-semibold flex items-center justify-center gap-2">
-                    <i data-lucide="receipt" class="w-4 h-4 text-emerald-400"></i>
-                    <span>Cek Daftar Invoice</span>
+                  <button onclick="slideToSection(5)" class="w-full py-2.5 rounded-xl btn-secondary text-xs font-semibold flex items-center justify-center gap-2 text-amber-400">
+                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                    <span>Ubah Pengaturan Toko</span>
                   </button>
                 </div>
 
@@ -422,8 +438,8 @@
                     <span class="text-emerald-400 font-bold">Supabase PostgreSQL</span>
                   </div>
                   <div class="flex items-center justify-between">
-                    <span class="text-slate-400">Pre-Warming:</span>
-                    <span class="text-amber-400 font-bold">0 Detik (Instant)</span>
+                    <span class="text-slate-400">Image Editor:</span>
+                    <span class="text-orange-400 font-bold">Built-in Cropper</span>
                   </div>
                 </div>
               </div>
@@ -433,14 +449,14 @@
           </div>
         </div>
 
-        <!-- ================= SLIDE 1: PRODUCTS (KATALOG PRODUK CRUD) ================= -->
+        <!-- ================= SLIDE 1: PRODUCTS (KATALOG PRODUK CRUD + IMAGE CROPPER) ================= -->
         <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-1">
           <div class="max-w-7xl mx-auto space-y-4">
             
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
               <div>
                 <h2 class="text-xl font-bold font-display text-white">Manajemen Katalog Produk</h2>
-                <p class="text-xs text-slate-400">Kelola daftar produk digital, ubah harga diskon, atau tambah item baru.</p>
+                <p class="text-xs text-slate-400">Kelola daftar produk digital, ubah harga, upload gambar, crop visual, dan update file repositori.</p>
               </div>
               
               <button onclick="openAddProductModal()" class="px-4 py-2.5 rounded-xl btn-primary text-xs font-bold flex items-center gap-2 shadow-md">
@@ -455,6 +471,7 @@
                 <table class="w-full text-left text-xs">
                   <thead class="bg-surface-elevated text-slate-400 font-mono uppercase text-[10px] border-b border-surface-border">
                     <tr>
+                      <th class="px-4 py-3.5">Gambar</th>
                       <th class="px-4 py-3.5">ID</th>
                       <th class="px-4 py-3.5">Produk</th>
                       <th class="px-4 py-3.5">Kategori</th>
@@ -465,7 +482,7 @@
                     </tr>
                   </thead>
                   <tbody id="products-table-body" class="divide-y divide-surface-border/60 font-sans">
-                    <tr><td colspan="7" class="p-6 text-center text-slate-400">Memuat katalog produk...</td></tr>
+                    <tr><td colspan="8" class="p-6 text-center text-slate-400">Memuat katalog produk...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -474,8 +491,49 @@
           </div>
         </div>
 
-        <!-- ================= SLIDE 2: TRANSACTIONS (TRANSAKSI & QRIS) ================= -->
+        <!-- ================= SLIDE 2: BANNERS & SLIDER (PENGATURAN BANNER PROMO) ================= -->
         <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-2">
+          <div class="max-w-7xl mx-auto space-y-4">
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+              <div>
+                <h2 class="text-xl font-bold font-display text-white">Manajemen Banner & Slider Hero</h2>
+                <p class="text-xs text-slate-400">Atur gambar banner promosi, teks ajakan (CTA), badge promo, dan slider toko utama.</p>
+              </div>
+              
+              <button onclick="openAddBannerModal()" class="px-4 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold flex items-center gap-2 shadow-md">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Tambah Banner Slide</span>
+              </button>
+            </div>
+
+            <!-- Banners Table Card -->
+            <div class="clean-card rounded-2xl overflow-hidden shadow-lg">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-surface-elevated text-slate-400 font-mono uppercase text-[10px] border-b border-surface-border">
+                    <tr>
+                      <th class="px-4 py-3.5">Visual Banner</th>
+                      <th class="px-4 py-3.5">ID</th>
+                      <th class="px-4 py-3.5">Judul & Subtitle</th>
+                      <th class="px-4 py-3.5">Badge Label</th>
+                      <th class="px-4 py-3.5">Tombol CTA</th>
+                      <th class="px-4 py-3.5">Status</th>
+                      <th class="px-4 py-3.5 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="banners-table-body" class="divide-y divide-surface-border/60 font-sans">
+                    <tr><td colspan="7" class="p-6 text-center text-slate-400">Memuat data banner...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ================= SLIDE 3: TRANSACTIONS (TRANSAKSI & QRIS) ================= -->
+        <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-3">
           <div class="max-w-7xl mx-auto space-y-4">
             
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
@@ -519,8 +577,8 @@
           </div>
         </div>
 
-        <!-- ================= SLIDE 3: USERS (PENGGUNA) ================= -->
-        <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-3">
+        <!-- ================= SLIDE 4: USERS (PENGGUNA) ================= -->
+        <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-4">
           <div class="max-w-7xl mx-auto space-y-4">
             
             <div class="pb-2">
@@ -550,57 +608,102 @@
           </div>
         </div>
 
-        <!-- ================= SLIDE 4: SYSTEM (SISTEM & GATEWAY) ================= -->
-        <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-4">
+        <!-- ================= SLIDE 5: SETTINGS & SYSTEM (PENGATURAN TOKO & SISTEM) ================= -->
+        <div class="slider-slide p-4 sm:p-6 lg:p-8" id="slide-5">
           <div class="max-w-7xl mx-auto space-y-6">
             
             <div class="pb-2">
-              <h2 class="text-xl font-bold font-display text-white">Status Sistem & Gateway</h2>
-              <p class="text-xs text-slate-400">Diagnostik integrasi database Supabase Cloud dan Gateway QRIS.</p>
+              <h2 class="text-xl font-bold font-display text-white">Pengaturan Toko & Status Sistem</h2>
+              <p class="text-xs text-slate-400">Sesuaikan identitas toko online, teks promo berjalan, kontak CS WhatsApp, dan diagnosa server.</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              <div class="clean-card rounded-2xl p-5 space-y-4">
-                <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
-                  <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
-                  <span>Supabase PostgreSQL Cloud</span>
-                </h3>
-                <div class="font-mono text-xs space-y-2.5 text-slate-300 bg-surface-base p-4 rounded-xl border border-surface-border">
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Provider:</span>
-                    <span class="text-white font-bold">Supabase Cloud</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Region:</span>
-                    <span class="text-emerald-400">ap-northeast-2 (Seoul)</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Status:</span>
-                    <span class="text-emerald-400 font-bold flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> ONLINE
-                    </span>
-                  </div>
+              <!-- Store Settings Form -->
+              <div class="clean-card rounded-2xl p-6 space-y-4">
+                <div class="flex items-center gap-2 pb-3 border-b border-surface-border">
+                  <i data-lucide="store" class="w-5 h-5 text-orange-400"></i>
+                  <h3 class="font-display font-bold text-sm text-white">Identitas & Informasi Toko</h3>
                 </div>
+
+                <form onsubmit="handleSaveSettings(event)" class="space-y-3.5 text-xs">
+                  <div>
+                    <label class="block font-medium text-slate-300 mb-1">Nama Toko Digital</label>
+                    <input type="text" id="set-store-name" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+                  </div>
+
+                  <div>
+                    <label class="block font-medium text-slate-300 mb-1">Tagline Toko</label>
+                    <input type="text" id="set-tagline" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+                  </div>
+
+                  <div>
+                    <label class="block font-medium text-slate-300 mb-1">Teks Pengumuman Berjalan (Announcement Bar)</label>
+                    <textarea id="set-announcement" rows="2" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500"></textarea>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block font-medium text-slate-300 mb-1">Nomor WhatsApp CS</label>
+                      <input type="text" id="set-whatsapp" placeholder="6281234567890" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+                    </div>
+
+                    <div>
+                      <label class="block font-medium text-slate-300 mb-1">Email Dukungan CS</label>
+                      <input type="email" id="set-email" placeholder="support@kheireditz.my.id" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+                    </div>
+                  </div>
+
+                  <button type="submit" id="btn-save-settings" class="w-full py-2.5 rounded-xl btn-primary text-xs font-bold flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Simpan Pengaturan Toko</span>
+                  </button>
+                </form>
               </div>
 
-              <div class="clean-card rounded-2xl p-5 space-y-4">
-                <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
-                  <i data-lucide="credit-card" class="w-4 h-4 text-orange-400"></i>
-                  <span>Gateway QRIS Standar Nasional</span>
-                </h3>
-                <div class="font-mono text-xs space-y-2.5 text-slate-300 bg-surface-base p-4 rounded-xl border border-surface-border">
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Mode:</span>
-                    <span class="text-white font-bold">Realtime Dynamic QRIS</span>
+              <!-- System Diagnostics -->
+              <div class="space-y-4">
+                <div class="clean-card rounded-2xl p-5 space-y-4">
+                  <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
+                    <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+                    <span>Supabase PostgreSQL Cloud</span>
+                  </h3>
+                  <div class="font-mono text-xs space-y-2.5 text-slate-300 bg-surface-base p-4 rounded-xl border border-surface-border">
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Provider:</span>
+                      <span class="text-white font-bold">Supabase Cloud</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Region:</span>
+                      <span class="text-emerald-400">ap-northeast-2 (Seoul)</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Status:</span>
+                      <span class="text-emerald-400 font-bold flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> ONLINE
+                      </span>
+                    </div>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Saldo Akun:</span>
-                    <span id="sys-gateway-bal" class="text-orange-400 font-bold">Rp 0</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-500">Pre-Warming:</span>
-                    <span class="text-emerald-400 font-bold">Aktif (0 Detik Instant)</span>
+                </div>
+
+                <div class="clean-card rounded-2xl p-5 space-y-4">
+                  <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
+                    <i data-lucide="credit-card" class="w-4 h-4 text-orange-400"></i>
+                    <span>Gateway QRIS Standar Nasional</span>
+                  </h3>
+                  <div class="font-mono text-xs space-y-2.5 text-slate-300 bg-surface-base p-4 rounded-xl border border-surface-border">
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Mode:</span>
+                      <span class="text-white font-bold">Realtime Dynamic QRIS</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Saldo Akun:</span>
+                      <span id="sys-gateway-bal" class="text-orange-400 font-bold">Rp 0</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-500">Pre-Warming:</span>
+                      <span class="text-emerald-400 font-bold">Aktif (0 Detik Instant)</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -613,34 +716,76 @@
       </div>
     </div>
 
-    <!-- BOTTOM MOBILE SLIDE INDICATORS -->
-    <div class="py-3 border-t border-surface-border bg-surface-base flex items-center justify-center gap-2">
+    <!-- BOTTOM MOBILE SLIDE INDICATORS (6 DOTS) -->
+    <div class="py-2.5 border-t border-surface-border bg-surface-base flex items-center justify-center gap-2">
       <button onclick="slideToSection(0)" id="dot-0" class="w-2 h-2 rounded-full bg-orange-500 transition-all"></button>
       <button onclick="slideToSection(1)" id="dot-1" class="w-2 h-2 rounded-full bg-surface-border transition-all"></button>
       <button onclick="slideToSection(2)" id="dot-2" class="w-2 h-2 rounded-full bg-surface-border transition-all"></button>
       <button onclick="slideToSection(3)" id="dot-3" class="w-2 h-2 rounded-full bg-surface-border transition-all"></button>
       <button onclick="slideToSection(4)" id="dot-4" class="w-2 h-2 rounded-full bg-surface-border transition-all"></button>
+      <button onclick="slideToSection(5)" id="dot-5" class="w-2 h-2 rounded-full bg-surface-border transition-all"></button>
     </div>
 
   </div>
 
-  <!-- ================= MODAL: TAMBAH / EDIT PRODUK ================= -->
-  <div id="product-form-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay hidden">
-    <div class="bg-surface-card max-w-xl w-full rounded-2xl p-6 border border-surface-border shadow-2xl relative max-h-[90vh] overflow-y-auto">
+  <!-- ================= MODAL: TAMBAH / EDIT PRODUK (LENGKAP DENGAN URL GAMBAR & CROPPER) ================= -->
+  <div id="product-form-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-overlay hidden">
+    <div class="bg-surface-card max-w-2xl w-full rounded-2xl p-5 sm:p-6 border border-surface-border shadow-2xl relative max-h-[92vh] overflow-y-auto">
       
-      <div class="flex items-center justify-between pb-4 mb-4 border-b border-surface-border">
+      <div class="flex items-center justify-between pb-3.5 mb-3.5 border-b border-surface-border">
         <h3 id="modal-prod-heading" class="text-base font-bold font-display text-white">Tambah Produk Baru</h3>
         <button onclick="closeProductFormModal()" class="p-1 rounded-lg text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <form id="product-crud-form" onsubmit="handleProductSubmit(event)" class="space-y-3.5 text-xs">
+      <form id="product-crud-form" onsubmit="handleProductSubmit(event)" class="space-y-4 text-xs">
         <input type="hidden" id="crud-prod-id" value="">
+
+        <!-- IMAGE PREVIEW & UPLOAD / CROPPER CONTROLS -->
+        <div class="p-3.5 rounded-xl bg-surface-base border border-surface-border space-y-3">
+          <label class="block font-semibold text-white flex items-center gap-1.5">
+            <i data-lucide="image" class="w-3.5 h-3.5 text-orange-400"></i>
+            <span>Visual Gambar Produk & Tools Editor</span>
+          </label>
+
+          <div class="flex flex-col sm:flex-row items-center gap-4">
+            <!-- Thumbnail Box -->
+            <div class="w-28 h-28 sm:w-32 sm:h-32 rounded-xl border border-surface-border overflow-hidden bg-surface-elevated shrink-0 relative group">
+              <img id="crud-image-preview" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80" alt="Preview" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <button type="button" onclick="openCropperModal('product')" class="px-2 py-1 rounded bg-orange-500 text-white text-[10px] font-bold">Crop</button>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex-1 space-y-2 w-full">
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">URL Gambar (Direct Web Link)</label>
+                <input type="url" id="crud-image-url" oninput="updateImagePreview(this.value, 'product')" placeholder="https://images.unsplash.com/..." class="w-full px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-white text-xs outline-none focus:border-orange-500">
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 pt-1">
+                <!-- File Picker -->
+                <label class="px-3 py-1.5 rounded-lg btn-secondary text-[11px] cursor-pointer flex items-center gap-1.5 hover:text-white">
+                  <i data-lucide="upload" class="w-3.5 h-3.5 text-orange-400"></i>
+                  <span>Upload Foto</span>
+                  <input type="file" id="crud-file-input" accept="image/*" onchange="handleLocalFileUpload(event, 'product')" class="hidden">
+                </label>
+
+                <!-- Open Cropper Button -->
+                <button type="button" onclick="openCropperModal('product')" class="px-3 py-1.5 rounded-lg btn-secondary text-[11px] flex items-center gap-1.5 hover:text-white">
+                  <i data-lucide="crop" class="w-3.5 h-3.5 text-purple-400"></i>
+                  <span>Edit & Crop Gambar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div>
           <label class="block font-medium text-slate-300 mb-1">Judul Produk</label>
-          <input type="text" id="crud-title" required placeholder="Contoh: SaaS Starter Kit" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+          <input type="text" id="crud-title" required placeholder="Contoh: SaaS Starter Kit Next.js 15" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -652,6 +797,7 @@
               <option value="mobile">Mobile App</option>
               <option value="ai">AI / Automation</option>
               <option value="scripts">Scripts & API</option>
+              <option value="uikit">3D UI / Graphic Assets</option>
             </select>
           </div>
 
@@ -674,13 +820,19 @@
         </div>
 
         <div>
-          <label class="block font-medium text-slate-300 mb-1">Tech Stack</label>
+          <label class="block font-medium text-slate-300 mb-1">Tech Stack / Fitur Kunci</label>
           <input type="text" id="crud-stack" required placeholder="Next.js 15, FastAPI, Tailwind CSS, PostgreSQL" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
         </div>
 
         <div>
+          <label class="block font-medium text-slate-300 mb-1">Tautan Berkas Unduhan / Source Code URL</label>
+          <input type="url" id="crud-file-url" placeholder="https://drive.google.com/... atau https://github.com/..." class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500">
+          <p class="text-[10px] text-slate-500 mt-1">Tautan ini yang akan otomatis diberikan kepada pembeli setelah pembayaran QRIS lunas.</p>
+        </div>
+
+        <div>
           <label class="block font-medium text-slate-300 mb-1">Deskripsi Lengkap Produk</label>
-          <textarea id="crud-desc" required rows="3" placeholder="Penjelasan lengkap mengenai fitur dan keunggulan produk..." class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500"></textarea>
+          <textarea id="crud-desc" required rows="3" placeholder="Penjelasan lengkap mengenai fitur, keunggulan, dan isi paket..." class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-orange-500"></textarea>
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-3 border-t border-surface-border">
@@ -688,6 +840,172 @@
           <button type="submit" id="btn-save-prod" class="px-5 py-2 rounded-xl btn-primary text-white font-bold">Simpan Produk</button>
         </div>
       </form>
+
+    </div>
+  </div>
+
+  <!-- ================= MODAL: TAMBAH / EDIT BANNER SLIDER ================= -->
+  <div id="banner-form-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-overlay hidden">
+    <div class="bg-surface-card max-w-xl w-full rounded-2xl p-5 sm:p-6 border border-surface-border shadow-2xl relative max-h-[92vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between pb-3.5 mb-3.5 border-b border-surface-border">
+        <h3 id="modal-banner-heading" class="text-base font-bold font-display text-white">Tambah Banner Slide</h3>
+        <button onclick="closeBannerFormModal()" class="p-1 rounded-lg text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="banner-crud-form" onsubmit="handleBannerSubmit(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="crud-banner-id" value="">
+
+        <!-- BANNER IMAGE & CROPPER -->
+        <div class="p-3.5 rounded-xl bg-surface-base border border-surface-border space-y-3">
+          <label class="block font-semibold text-white flex items-center gap-1.5">
+            <i data-lucide="image" class="w-3.5 h-3.5 text-pink-400"></i>
+            <span>Visual Gambar Banner Hero</span>
+          </label>
+
+          <div class="w-full h-32 rounded-xl border border-surface-border overflow-hidden bg-surface-elevated relative group">
+            <img id="crud-banner-preview" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80" alt="Banner Preview" class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <button type="button" onclick="openCropperModal('banner')" class="px-3 py-1.5 rounded-lg bg-pink-500 text-white font-bold">Crop & Edit</button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">URL Gambar Banner</label>
+              <input type="url" id="crud-banner-image-url" oninput="updateImagePreview(this.value, 'banner')" placeholder="https://images.unsplash.com/..." class="w-full px-3 py-1.5 rounded-lg bg-surface-card border border-surface-border text-white outline-none focus:border-pink-500">
+            </div>
+
+            <div class="flex items-center gap-2">
+              <label class="px-3 py-1.5 rounded-lg btn-secondary text-[11px] cursor-pointer flex items-center gap-1.5 hover:text-white">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-pink-400"></i>
+                <span>Upload Foto Banner</span>
+                <input type="file" id="crud-banner-file-input" accept="image/*" onchange="handleLocalFileUpload(event, 'banner')" class="hidden">
+              </label>
+
+              <button type="button" onclick="openCropperModal('banner')" class="px-3 py-1.5 rounded-lg btn-secondary text-[11px] flex items-center gap-1.5 hover:text-white">
+                <i data-lucide="crop" class="w-3.5 h-3.5 text-purple-400"></i>
+                <span>Crop Gambar Banner</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">Judul Utama Banner</label>
+          <input type="text" id="crud-banner-title" required placeholder="Contoh: OmniAI Multi-Model SaaS Platform" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+        </div>
+
+        <div>
+          <label class="block font-medium text-slate-300 mb-1">Subtitle / Penjelasan Singkat</label>
+          <input type="text" id="crud-banner-subtitle" placeholder="Komersial Starter Kit Next.js 15 & Supabase" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Badge Promo</label>
+            <input type="text" id="crud-banner-badge" placeholder="BESTSELLER, NEW, PROMO" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+          </div>
+
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Warna Aksen Badge</label>
+            <select id="crud-banner-badge-color" class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+              <option value="orange">Oranye (Orange)</option>
+              <option value="purple">Ungu (Purple)</option>
+              <option value="emerald">Hijau (Emerald)</option>
+              <option value="pink">Pink / Magenta</option>
+              <option value="sky">Biru (Sky Blue)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Teks Tombol (CTA)</label>
+            <input type="text" id="crud-banner-cta-text" value="Beli Sekarang" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+          </div>
+
+          <div>
+            <label class="block font-medium text-slate-300 mb-1">Tautan Tombol (CTA Link)</label>
+            <input type="text" id="crud-banner-cta-link" value="#katalog" required class="w-full px-3.5 py-2 rounded-xl bg-surface-base border border-surface-border text-white outline-none focus:border-pink-500">
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="crud-banner-active" checked class="rounded bg-surface-base border-surface-border text-pink-500 focus:ring-0">
+          <label for="crud-banner-active" class="text-xs text-slate-300 cursor-pointer">Aktifkan banner ini di slider toko</label>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-surface-border">
+          <button type="button" onclick="closeBannerFormModal()" class="px-4 py-2 rounded-xl btn-secondary">Batal</button>
+          <button type="submit" id="btn-save-banner" class="px-5 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-bold">Simpan Banner</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ================= MODAL: INTERACTIVE IMAGE CROPPER & EDITOR ================= -->
+  <div id="cropper-modal" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 modal-overlay hidden">
+    <div class="bg-surface-card max-w-3xl w-full rounded-2xl p-5 sm:p-6 border border-surface-border shadow-2xl relative max-h-[94vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between pb-3 mb-3 border-b border-surface-border">
+        <div class="flex items-center gap-2">
+          <i data-lucide="crop" class="w-4 h-4 text-orange-400"></i>
+          <h3 class="text-base font-bold font-display text-white">Editor & Pemotong Gambar (Crop Tool)</h3>
+        </div>
+        <button onclick="closeCropperModal()" class="p-1 rounded-lg text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Cropper Canvas Container -->
+        <div class="w-full h-80 sm:h-96 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-surface-border relative">
+          <img id="cropper-target-img" src="" alt="Cropping Target" class="max-h-full max-w-full block">
+        </div>
+
+        <!-- Controls Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <!-- Aspect Ratios -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-400 font-mono text-[11px]">Rasio:</span>
+            <button type="button" onclick="setCropRatio(16/9)" class="px-2.5 py-1 rounded-lg btn-secondary text-[11px]">16:9</button>
+            <button type="button" onclick="setCropRatio(16/10)" class="px-2.5 py-1 rounded-lg btn-secondary text-[11px]">16:10</button>
+            <button type="button" onclick="setCropRatio(1/1)" class="px-2.5 py-1 rounded-lg btn-secondary text-[11px]">1:1</button>
+            <button type="button" onclick="setCropRatio(NaN)" class="px-2.5 py-1 rounded-lg btn-secondary text-[11px]">Bebas</button>
+          </div>
+
+          <!-- Zoom & Rotate Actions -->
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="rotateCropper(-90)" class="p-2 rounded-lg btn-secondary" title="Putar Kiri (-90°)">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="rotateCropper(90)" class="p-2 rounded-lg btn-secondary" title="Putar Kanan (+90°)">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="zoomCropper(0.1)" class="p-2 rounded-lg btn-secondary" title="Perbesar (+)">
+              <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="zoomCropper(-0.1)" class="p-2 rounded-lg btn-secondary" title="Perkecil (-)">
+              <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" onclick="resetCropper()" class="px-2.5 py-1 rounded-lg btn-secondary text-[11px]">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-surface-border">
+          <button type="button" onclick="closeCropperModal()" class="px-4 py-2 rounded-xl btn-secondary text-xs">Batal</button>
+          <button type="button" onclick="applyCroppedImage()" class="px-5 py-2 rounded-xl btn-primary text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-orange-500/25">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Terapkan Hasil Crop ke Form</span>
+          </button>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -706,11 +1024,16 @@
   <!-- ================= LOGIC & SLIDER SCRIPT ================= -->
   <script>
     let currentSlideIndex = 0;
-    const totalSlides = 5;
+    const totalSlides = 6;
     let currentAdminUser = null;
     let allProducts = [];
+    let allBanners = [];
     let allInvoices = [];
     let allUsers = [];
+    let storeSettings = {};
+
+    let activeCropper = null;
+    let activeCropContext = 'product';
 
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -718,7 +1041,6 @@
       checkAdminSession();
     });
 
-    // ================= SLIDER ENGINE (MODEL GESER) =================
     function slideToSection(index) {
       if (index < 0) index = 0;
       if (index >= totalSlides) index = totalSlides - 1;
@@ -726,10 +1048,9 @@
 
       const track = document.getElementById('admin-slider-track');
       if (track) {
-        track.style.transform = `translateX(-${index * 20}%)`;
+        track.style.transform = `translateX(-${index * 16.666667}%)`;
       }
 
-      // Update Slides Active Class for smooth opacity & scale
       for (let i = 0; i < totalSlides; i++) {
         const slide = document.getElementById(`slide-${i}`);
         const pill = document.getElementById(`pill-tab-${i}`);
@@ -764,7 +1085,6 @@
       slideToSection(currentSlideIndex - 1);
     }
 
-    // Touch Swipe Gesture Support for Mobile & Tablet (With Strict Scrollable Container Isolation)
     function initTouchSwipe() {
       const area = document.getElementById('slider-touch-area');
       if (!area) return;
@@ -777,10 +1097,8 @@
 
       area.addEventListener('touchstart', (e) => {
         const target = e.target;
-        // Ignore swipe if inside tables, horizontal scroll containers, forms, modals, or inputs
         const scrollableContainer = target.closest('.overflow-x-auto, table, thead, tbody, tr, td, th, input, textarea, select, .modal-overlay, form, button');
         
-        // Also check if any parent is horizontally scrollable
         let el = target;
         let hasHScroll = false;
         while (el && el !== area) {
@@ -816,18 +1134,45 @@
         const diffX = touchStartX - touchEndX;
         const diffY = touchStartY - touchEndY;
 
-        // Ensure horizontal intent and prevent accidental triggers during vertical scroll
         if (Math.abs(diffX) > 75 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
           if (diffX > 0) {
-            nextSlide(); // Swiped left -> go to next
+            nextSlide();
           } else {
-            prevSlide(); // Swiped right -> go to previous
+            prevSlide();
           }
         }
       }
     }
 
-    // ================= ADMIN AUTH SESSION =================
+    function checkAndLockAdminScroll() {
+      const anyModalOpen = document.querySelectorAll('.modal-overlay:not(.hidden)').length > 0;
+      if (anyModalOpen) {
+        document.documentElement.classList.add('modal-open');
+        document.body.classList.add('modal-open');
+      } else {
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+      }
+    }
+
+    document.addEventListener('touchmove', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto, textarea, input, select');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    document.addEventListener('wheel', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
     function checkAdminSession() {
       const stored = sessionStorage.getItem('kheireditz_admin_session');
       if (stored) {
@@ -911,10 +1256,8 @@
       showLoginGate();
     }
 
-    // ================= DATA FETCHING =================
     async function refreshDashboardData() {
       try {
-        // 1. Stats
         const statsRes = await fetch('/api/v1/admin/stats');
         const statsData = await statsRes.json();
         if (statsData.success && statsData.stats) {
@@ -926,7 +1269,6 @@
           document.getElementById('sys-gateway-bal').textContent = `Rp ${Number(s.balance).toLocaleString('id-ID')}`;
         }
 
-        // 2. Products
         const prodRes = await fetch('/api/v1/products');
         const prodData = await prodRes.json();
         if (prodData.success && prodData.products) {
@@ -935,7 +1277,14 @@
           renderProductsTable(allProducts);
         }
 
-        // 3. Invoices
+        const banRes = await fetch('/api/v1/banners');
+        const banData = await banRes.json();
+        if (banData.success && banData.banners) {
+          allBanners = banData.banners;
+          document.getElementById('badge-banner-count').textContent = allBanners.length;
+          renderBannersTable(allBanners);
+        }
+
         const invRes = await fetch('/api/v1/history');
         const invData = await invRes.json();
         if (invData.success && invData.transactions) {
@@ -946,7 +1295,6 @@
           renderRecentOrders(allInvoices.slice(0, 5));
         }
 
-        // 4. Users
         const userRes = await fetch('/api/v1/admin/users');
         const userData = await userRes.json();
         if (userData.success && userData.users) {
@@ -954,20 +1302,35 @@
           renderUsersTable(allUsers);
         }
 
+        const setRes = await fetch('/api/v1/settings');
+        const setData = await setRes.json();
+        if (setData.success && setData.settings) {
+          storeSettings = setData.settings;
+          document.getElementById('set-store-name').value = storeSettings.store_name || '';
+          document.getElementById('set-tagline').value = storeSettings.tagline || '';
+          document.getElementById('set-announcement').value = storeSettings.announcement || '';
+          document.getElementById('set-whatsapp').value = storeSettings.cs_whatsapp || '';
+          document.getElementById('set-email').value = storeSettings.cs_email || '';
+        }
+
       } catch (err) {
         console.error("Gagal refresh data:", err);
       }
     }
 
-    // ================= RENDER TABLES =================
     function renderProductsTable(products) {
       const tbody = document.getElementById('products-table-body');
       if (!products.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada produk di database.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Belum ada produk di database.</td></tr>`;
         return;
       }
       tbody.innerHTML = products.map(p => `
         <tr class="hover:bg-surface-elevated/50 transition-colors">
+          <td class="px-4 py-3">
+            <div class="w-12 h-12 rounded-lg overflow-hidden border border-surface-border bg-surface-elevated shrink-0">
+              <img src="${p.image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80'}" alt="${p.title}" class="w-full h-full object-cover">
+            </div>
+          </td>
           <td class="px-4 py-3 font-mono text-slate-500 font-bold">#${p.id}</td>
           <td class="px-4 py-3">
             <div class="font-bold text-white">${p.title}</div>
@@ -987,6 +1350,50 @@
                 <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
               </button>
               <button onclick="deleteProduct(${p.id})" class="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300" title="Hapus Produk">
+                <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function renderBannersTable(banners) {
+      const tbody = document.getElementById('banners-table-body');
+      if (!banners.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Belum ada banner slide.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = banners.map(b => `
+        <tr class="hover:bg-surface-elevated/50 transition-colors">
+          <td class="px-4 py-3">
+            <div class="w-24 h-12 rounded-lg overflow-hidden border border-surface-border bg-surface-elevated shrink-0">
+              <img src="${b.image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80'}" alt="${b.title}" class="w-full h-full object-cover">
+            </div>
+          </td>
+          <td class="px-4 py-3 font-mono text-slate-500 font-bold">#${b.id}</td>
+          <td class="px-4 py-3">
+            <div class="font-bold text-white">${b.title}</div>
+            <div class="text-[10px] text-slate-400">${b.subtitle || '-'}</div>
+          </td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30 uppercase">${b.badge || 'PROMO'}</span>
+          </td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-300">
+            ${b.cta_text || 'Beli'} &bull; <span class="text-slate-500">${b.cta_link || '#'}</span>
+          </td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono ${b.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-slate-500/10 text-slate-400'}">
+              ${b.active ? 'AKTIF' : 'NONAKTIF'}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button onclick="openEditBannerModal(${b.id})" class="p-1.5 rounded-lg bg-surface-elevated hover:bg-surface-border text-slate-300 hover:text-white" title="Edit Banner">
+                <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+              </button>
+              <button onclick="deleteBanner(${b.id})" class="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300" title="Hapus Banner">
                 <i data-lucide="trash" class="w-3.5 h-3.5"></i>
               </button>
             </div>
@@ -1080,39 +1487,121 @@
       }
     }
 
-    // ================= BULLETPROOF BODY SCROLL LOCK FOR FLOATING SCREENS =================
-    function checkAndLockAdminScroll() {
-      const anyModalOpen = document.querySelectorAll('.modal-overlay:not(.hidden)').length > 0;
-      if (anyModalOpen) {
-        document.documentElement.classList.add('modal-open');
-        document.body.classList.add('modal-open');
-      } else {
-        document.documentElement.classList.remove('modal-open');
-        document.body.classList.remove('modal-open');
+    function updateImagePreview(url, context) {
+      if (context === 'product') {
+        const preview = document.getElementById('crud-image-preview');
+        if (preview && url) preview.src = url;
+      } else if (context === 'banner') {
+        const preview = document.getElementById('crud-banner-preview');
+        if (preview && url) preview.src = url;
       }
     }
 
-    // Block touch drag on background when modal is open
-    document.addEventListener('touchmove', function(e) {
-      if (document.body.classList.contains('modal-open')) {
-        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto, textarea, input, select');
-        if (!scrollable) {
-          e.preventDefault();
-        }
-      }
-    }, { passive: false });
+    function handleLocalFileUpload(event, context) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    // Block wheel on background when modal is open
-    document.addEventListener('wheel', function(e) {
-      if (document.body.classList.contains('modal-open')) {
-        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto');
-        if (!scrollable) {
-          e.preventDefault();
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64 = e.target.result;
+        if (context === 'product') {
+          document.getElementById('crud-image-url').value = base64;
+          document.getElementById('crud-image-preview').src = base64;
+        } else if (context === 'banner') {
+          document.getElementById('crud-banner-image-url').value = base64;
+          document.getElementById('crud-banner-preview').src = base64;
         }
-      }
-    }, { passive: false });
+        showToast("Gambar Diunggah", "Foto berhasil dimuat. Anda dapat meng-crop visual sekarang.");
+      };
+      reader.readAsDataURL(file);
+    }
 
-    // ================= PRODUCT CRUD MODAL =================
+    function openCropperModal(context) {
+      activeCropContext = context;
+      let targetSrc = '';
+      if (context === 'product') {
+        targetSrc = document.getElementById('crud-image-url').value || document.getElementById('crud-image-preview').src;
+      } else if (context === 'banner') {
+        targetSrc = document.getElementById('crud-banner-image-url').value || document.getElementById('crud-banner-preview').src;
+      }
+
+      if (!targetSrc) {
+        showToast("Peringatan", "Silakan masukkan URL gambar atau unggah foto terlebih dahulu.");
+        return;
+      }
+
+      const imgEl = document.getElementById('cropper-target-img');
+      imgEl.src = targetSrc;
+
+      document.getElementById('cropper-modal').classList.remove('hidden');
+      checkAndLockAdminScroll();
+      lucide.createIcons();
+
+      if (activeCropper) {
+        activeCropper.destroy();
+      }
+
+      setTimeout(() => {
+        const defaultRatio = context === 'banner' ? 16 / 9 : 16 / 10;
+        activeCropper = new Cropper(imgEl, {
+          aspectRatio: defaultRatio,
+          viewMode: 1,
+          autoCropArea: 0.9,
+          responsive: true,
+          background: false
+        });
+      }, 100);
+    }
+
+    function closeCropperModal() {
+      document.getElementById('cropper-modal').classList.add('hidden');
+      if (activeCropper) {
+        activeCropper.destroy();
+        activeCropper = null;
+      }
+      checkAndLockAdminScroll();
+    }
+
+    function setCropRatio(ratio) {
+      if (activeCropper) activeCropper.setAspectRatio(ratio);
+    }
+
+    function rotateCropper(deg) {
+      if (activeCropper) activeCropper.rotate(deg);
+    }
+
+    function zoomCropper(ratio) {
+      if (activeCropper) activeCropper.zoom(ratio);
+    }
+
+    function resetCropper() {
+      if (activeCropper) activeCropper.reset();
+    }
+
+    function applyCroppedImage() {
+      if (!activeCropper) return;
+      const canvas = activeCropper.getCroppedCanvas({
+        maxWidth: 1200,
+        maxHeight: 1200,
+        fillColor: '#12131a',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+      });
+
+      const croppedBase64 = canvas.toDataURL('image/jpeg', 0.88);
+
+      if (activeCropContext === 'product') {
+        document.getElementById('crud-image-url').value = croppedBase64;
+        document.getElementById('crud-image-preview').src = croppedBase64;
+      } else if (activeCropContext === 'banner') {
+        document.getElementById('crud-banner-image-url').value = croppedBase64;
+        document.getElementById('crud-banner-preview').src = croppedBase64;
+      }
+
+      showToast("Crop Selesai", "Hasil crop gambar berhasil diterapkan ke formulir.");
+      closeCropperModal();
+    }
+
     function openAddProductModal() {
       document.getElementById('modal-prod-heading').textContent = 'Tambah Produk Baru';
       document.getElementById('crud-prod-id').value = '';
@@ -1122,7 +1611,10 @@
       document.getElementById('crud-price').value = '';
       document.getElementById('crud-orig-price').value = '';
       document.getElementById('crud-stack').value = '';
+      document.getElementById('crud-file-url').value = '';
       document.getElementById('crud-desc').value = '';
+      document.getElementById('crud-image-url').value = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
+      document.getElementById('crud-image-preview').src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
       document.getElementById('product-form-modal').classList.remove('hidden');
       checkAndLockAdminScroll();
       lucide.createIcons();
@@ -1140,7 +1632,13 @@
       document.getElementById('crud-price').value = p.price || '';
       document.getElementById('crud-orig-price').value = p.original_price || p.price || '';
       document.getElementById('crud-stack').value = p.stack || '';
+      document.getElementById('crud-file-url').value = p.file_url || '';
       document.getElementById('crud-desc').value = p.description || '';
+      
+      const img = p.image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80';
+      document.getElementById('crud-image-url').value = img;
+      document.getElementById('crud-image-preview').src = img;
+
       document.getElementById('product-form-modal').classList.remove('hidden');
       checkAndLockAdminScroll();
       lucide.createIcons();
@@ -1163,7 +1661,9 @@
         price: parseInt(document.getElementById('crud-price').value),
         original_price: parseInt(document.getElementById('crud-orig-price').value),
         stack: document.getElementById('crud-stack').value.trim(),
-        description: document.getElementById('crud-desc').value.trim()
+        file_url: document.getElementById('crud-file-url').value.trim(),
+        description: document.getElementById('crud-desc').value.trim(),
+        image: document.getElementById('crud-image-url').value.trim()
       };
 
       const btn = document.getElementById('btn-save-prod');
@@ -1213,6 +1713,152 @@
       }
     }
 
+    function openAddBannerModal() {
+      document.getElementById('modal-banner-heading').textContent = 'Tambah Banner Slide';
+      document.getElementById('crud-banner-id').value = '';
+      document.getElementById('crud-banner-title').value = '';
+      document.getElementById('crud-banner-subtitle').value = '';
+      document.getElementById('crud-banner-badge').value = 'SPECIAL PROMO';
+      document.getElementById('crud-banner-badge-color').value = 'orange';
+      document.getElementById('crud-banner-cta-text').value = 'Beli Sekarang';
+      document.getElementById('crud-banner-cta-link').value = '#katalog';
+      document.getElementById('crud-banner-active').checked = true;
+      document.getElementById('crud-banner-image-url').value = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80';
+      document.getElementById('crud-banner-preview').src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80';
+      document.getElementById('banner-form-modal').classList.remove('hidden');
+      checkAndLockAdminScroll();
+      lucide.createIcons();
+    }
+
+    function openEditBannerModal(id) {
+      const b = allBanners.find(x => x.id === id);
+      if (!b) return;
+
+      document.getElementById('modal-banner-heading').textContent = `Edit Banner #${b.id}`;
+      document.getElementById('crud-banner-id').value = b.id;
+      document.getElementById('crud-banner-title').value = b.title || '';
+      document.getElementById('crud-banner-subtitle').value = b.subtitle || '';
+      document.getElementById('crud-banner-badge').value = b.badge || 'PROMO';
+      document.getElementById('crud-banner-badge-color').value = b.badge_color || 'orange';
+      document.getElementById('crud-banner-cta-text').value = b.cta_text || 'Beli Sekarang';
+      document.getElementById('crud-banner-cta-link').value = b.cta_link || '#katalog';
+      document.getElementById('crud-banner-active').checked = Boolean(b.active);
+      
+      const img = b.image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80';
+      document.getElementById('crud-banner-image-url').value = img;
+      document.getElementById('crud-banner-preview').src = img;
+
+      document.getElementById('banner-form-modal').classList.remove('hidden');
+      checkAndLockAdminScroll();
+      lucide.createIcons();
+    }
+
+    function closeBannerFormModal() {
+      document.getElementById('banner-form-modal').classList.add('hidden');
+      checkAndLockAdminScroll();
+    }
+
+    async function handleBannerSubmit(e) {
+      e.preventDefault();
+      const bannerId = document.getElementById('crud-banner-id').value;
+      const isEdit = Boolean(bannerId);
+
+      const payload = {
+        title: document.getElementById('crud-banner-title').value.trim(),
+        subtitle: document.getElementById('crud-banner-subtitle').value.trim(),
+        badge: document.getElementById('crud-banner-badge').value.trim() || 'PROMO',
+        badge_color: document.getElementById('crud-banner-badge-color').value,
+        cta_text: document.getElementById('crud-banner-cta-text').value.trim() || 'Beli Sekarang',
+        cta_link: document.getElementById('crud-banner-cta-link').value.trim() || '#katalog',
+        image: document.getElementById('crud-banner-image-url').value.trim(),
+        active: document.getElementById('crud-banner-active').checked ? 1 : 0
+      };
+
+      const btn = document.getElementById('btn-save-banner');
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        const url = isEdit ? `/api/v1/banners/${bannerId}` : '/api/v1/banners';
+        const method = isEdit ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast("Berhasil!", isEdit ? "Banner berhasil diperbarui." : "Banner baru berhasil ditambahkan.");
+          closeBannerFormModal();
+          refreshDashboardData();
+        } else {
+          showToast("Gagal", data.error || "Gagal menyimpan banner.");
+        }
+      } catch (err) {
+        showToast("Error", "Gagal menghubungi server database.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Banner';
+      }
+    }
+
+    async function deleteBanner(id) {
+      if (!confirm(`Apakah Anda yakin ingin menghapus banner #${id}?`)) return;
+
+      try {
+        const res = await fetch(`/api/v1/banners/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          showToast("Dihapus", "Banner berhasil dihapus dari database.");
+          refreshDashboardData();
+        } else {
+          showToast("Gagal", data.error || "Gagal menghapus banner.");
+        }
+      } catch (e) {
+        showToast("Error", "Gagal menghapus banner.");
+      }
+    }
+
+    async function handleSaveSettings(e) {
+      e.preventDefault();
+      const payload = {
+        store_name: document.getElementById('set-store-name').value.trim(),
+        tagline: document.getElementById('set-tagline').value.trim(),
+        announcement: document.getElementById('set-announcement').value.trim(),
+        cs_whatsapp: document.getElementById('set-whatsapp').value.trim(),
+        cs_email: document.getElementById('set-email').value.trim()
+      };
+
+      const btn = document.getElementById('btn-save-settings');
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Menyimpan...</span>`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/v1/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          showToast("Tersimpan!", "Pengaturan toko online berhasil diperbarui.");
+          refreshDashboardData();
+        } else {
+          showToast("Gagal", data.error || "Gagal menyimpan pengaturan.");
+        }
+      } catch (err) {
+        showToast("Error", "Gagal menghubungi server database.");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>Simpan Pengaturan Toko</span>`;
+        lucide.createIcons();
+      }
+    }
+
     function showToast(title, msg) {
       const el = document.getElementById('toast');
       document.getElementById('toast-title').textContent = title;
@@ -1222,7 +1868,7 @@
       setTimeout(() => {
         el.classList.remove('translate-y-0', 'opacity-100');
         el.classList.add('translate-y-24', 'opacity-0');
-      }, 3000);
+      }, 3200);
     }
   </script>
 </body>

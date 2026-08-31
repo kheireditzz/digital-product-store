@@ -23,7 +23,7 @@ Endpoints:
   POST /api/v1/webhook            → Dongtube payment webhook (HMAC signature)
 """
 
-import os, sys, json, re
+import os, sys, json, re, base64, uuid
 from http.server import SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
 from http.server import HTTPServer
@@ -45,11 +45,14 @@ from backend.controllers.app_controllers import (
     ProductController,
     InvoiceController,
     AdminController,
-    WebhookController
+    WebhookController,
+    BannerController,
+    SettingsController
 )
 
 # ── Route Regex Matchers ──────────────────────────────────────────────────
 RE_PRODUCT_ID = re.compile(r'^/api/v1/products/(\d+)$')
+RE_BANNER_ID  = re.compile(r'^/api/v1/banners/(\d+)$')
 
 # ── Main Request Handler ──────────────────────────────────────────────────
 class FullStackRouter(SimpleHTTPRequestHandler):
@@ -139,6 +142,16 @@ class FullStackRouter(SimpleHTTPRequestHandler):
             res, status = InvoiceController.create(params)
             return self.send_json(res, status)
 
+        # Banners
+        elif path == '/api/v1/banners':
+            res, status = BannerController.list_banners()
+            return self.send_json(res, status)
+
+        # Settings
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.get()
+            return self.send_json(res, status)
+
         # User profile
         elif path == '/api/v1/auth/profile':
             email = params.get('email', [''])[0].strip()
@@ -198,6 +211,49 @@ class FullStackRouter(SimpleHTTPRequestHandler):
         elif path == '/api/v1/products':
             res, status = ProductController.create(body)
 
+        elif path == '/api/v1/banners':
+            res, status = BannerController.create(body)
+
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.update(body)
+
+        elif path == '/api/v1/upload':
+            try:
+                img_data = body.get('image', '')
+                if not img_data:
+                    res, status = {"error": "Data gambar wajib diisi"}, 400
+                else:
+                    if ',' in img_data:
+                        header, base64_str = img_data.split(',', 1)
+                        if 'png' in header:
+                            ext = 'png'
+                        elif 'webp' in header:
+                            ext = 'webp'
+                        elif 'gif' in header:
+                            ext = 'gif'
+                        else:
+                            ext = 'jpg'
+                    else:
+                        base64_str = img_data
+                        ext = 'jpg'
+
+                    raw_bytes = base64.b64decode(base64_str)
+                    fname = f"img_{uuid.uuid4().hex[:10]}.{ext}"
+                    upload_dir = os.path.join(BASE_DIR, "frontend", "assets", "uploads")
+                    os.makedirs(upload_dir, exist_ok=True)
+                    file_path = os.path.join(upload_dir, fname)
+                    with open(file_path, "wb") as f:
+                        f.write(raw_bytes)
+
+                    res, status = {
+                        "success": True,
+                        "url": f"/frontend/assets/uploads/{fname}",
+                        "filename": fname,
+                        "size": len(raw_bytes)
+                    }, 200
+            except Exception as e:
+                res, status = {"error": f"Gagal mengunggah gambar: {str(e)}"}, 500
+
         elif path == '/api/v1/webhook':
             res, status = WebhookController.handle(raw, self.headers)
 
@@ -212,9 +268,14 @@ class FullStackRouter(SimpleHTTPRequestHandler):
         path   = parsed.path
         body   = self._read_body()
 
-        m = RE_PRODUCT_ID.match(path)
-        if m:
-            res, status = ProductController.update(int(m.group(1)), body)
+        m_prod = RE_PRODUCT_ID.match(path)
+        m_ban  = RE_BANNER_ID.match(path)
+        if m_prod:
+            res, status = ProductController.update(int(m_prod.group(1)), body)
+        elif m_ban:
+            res, status = BannerController.update(int(m_ban.group(1)), body)
+        elif path == '/api/v1/settings':
+            res, status = SettingsController.update(body)
         else:
             res, status = {"error": "Endpoint tidak ditemukan"}, 404
 
@@ -225,9 +286,12 @@ class FullStackRouter(SimpleHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path
 
-        m = RE_PRODUCT_ID.match(path)
-        if m:
-            res, status = ProductController.delete(int(m.group(1)))
+        m_prod = RE_PRODUCT_ID.match(path)
+        m_ban  = RE_BANNER_ID.match(path)
+        if m_prod:
+            res, status = ProductController.delete(int(m_prod.group(1)))
+        elif m_ban:
+            res, status = BannerController.delete(int(m_ban.group(1)))
         else:
             res, status = {"error": "Endpoint tidak ditemukan"}, 404
 
