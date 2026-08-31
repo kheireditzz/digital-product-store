@@ -155,8 +155,13 @@ class FullStackRouter(SimpleHTTPRequestHandler):
             res, status = AdminController.list_users()
             return self.send_json(res, status)
 
-        # Static files fallback
+        # Static files fallback (with strict security shield)
         else:
+            clean_path = path.lower().strip()
+            # Block sensitive paths, hidden files, server files, database, and env
+            if any(clean_path.startswith(prefix) for prefix in ['/.', '/backend', '/data', '/api', '/__pycache__']) or \
+               any(clean_path.endswith(ext) for ext in ['.env', '.db', '.py', '.sql', '.jsonl', '.log', '.sh', '.md', '.txt']):
+                return self.send_json({"error": "Akses ditolak"}, 403)
             return super().do_GET()
 
     # ── POST ──────────────────────────────────────────────────────────────
