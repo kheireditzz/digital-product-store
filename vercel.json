@@ -24,6 +24,10 @@
       "dest": "/riwayat.html"
     },
     {
+      "src": "/admin(.html)?",
+      "dest": "/admin.html"
+    },
+    {
       "src": "/frontend/(.*)",
       "dest": "/frontend/$1"
     },

@@ -155,6 +155,14 @@ class FullStackRouter(SimpleHTTPRequestHandler):
             res, status = AdminController.list_users()
             return self.send_json(res, status)
 
+        # Clean URL rewrite
+        elif path in ['/admin', '/admin/']:
+            self.path = '/admin.html'
+            return super().do_GET()
+        elif path in ['/riwayat', '/riwayat/']:
+            self.path = '/riwayat.html'
+            return super().do_GET()
+
         # Static files fallback (with strict security shield)
         else:
             clean_path = path.lower().strip()

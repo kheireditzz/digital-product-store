@@ -175,6 +175,17 @@
 
         <!-- Navigation Links with Ultra-Clean Short Labels -->
         <div class="space-y-1 text-xs font-medium">
+          <!-- Admin Shortcut (Visible only if logged in as Admin) -->
+          <div id="drawer-admin-link" class="hidden">
+            <a href="/admin.html" class="flex items-center justify-between p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 font-semibold hover:bg-orange-500/20 transition-colors">
+              <span class="flex items-center gap-2.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-orange-400"></i>
+                <span>Panel Admin</span>
+              </span>
+              <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-orange-500 text-white font-bold">ADMIN</span>
+            </a>
+          </div>
+
           <a href="/index.html#katalog" onclick="closeSideDrawer()" class="flex items-center justify-between p-2.5 rounded-xl hover:bg-surface-elevated text-slate-200 hover:text-white transition-colors">
             <span class="flex items-center gap-2.5">
               <i data-lucide="layout-grid" class="w-4 h-4 text-orange-400"></i>
@@ -312,8 +323,22 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
+      checkAdminStatus();
       await loadTransactions();
     });
+
+    function checkAdminStatus() {
+      const stored = sessionStorage.getItem('kheireditz_admin_session');
+      const adminLink = document.getElementById('drawer-admin-link');
+      if (stored && adminLink) {
+        try {
+          const user = JSON.parse(stored);
+          if (user && user.role === 'admin') {
+            adminLink.classList.remove('hidden');
+          }
+        } catch (e) {}
+      }
+    }
 
     async function loadTransactions() {
       const container = document.getElementById('tx-container');
