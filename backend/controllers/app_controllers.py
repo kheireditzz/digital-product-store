@@ -313,7 +313,7 @@ class InvoiceController:
 
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 2. Supabase Cloud Sync
+        # 2. Supabase Cloud Sync (Primary Storage)
         if SupabaseService.is_configured():
             SupabaseService.insert_invoice({
                 "id": inv_id,
@@ -328,18 +328,21 @@ class InvoiceController:
                 "license_key": None
             })
 
-        # 3. SQLite Local Sync
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT id FROM invoices WHERE id = ?", (inv_id,))
-        if not c.fetchone():
-            c.execute('''
-                INSERT INTO invoices
-                  (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?)
-            ''', (inv_id, user_email, cust_name, prod_id, prod_title, amount, fee, total, now_str))
-            conn.commit()
-        conn.close()
+        # 3. SQLite Local Sync (Safely executed if filesystem writable)
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT id FROM invoices WHERE id = ?", (inv_id,))
+            if not c.fetchone():
+                c.execute('''
+                    INSERT INTO invoices
+                      (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?)
+                ''', (inv_id, user_email, cust_name, prod_id, prod_title, amount, fee, total, now_str))
+                conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
         return {
             "success":    True,
@@ -358,42 +361,41 @@ class InvoiceController:
         if not inv_id:
             return {"error": "Parameter invoice_id wajib diisi"}, 400
 
-        # Check DB first
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT * FROM invoices WHERE id = ?", (inv_id,))
-        row = c.fetchone()
-        
+        # Check DB first (Supabase then SQLite)
+        row = None
+        if SupabaseService.is_configured():
+            sb_inv = SupabaseService.get_invoice(inv_id)
+            if sb_inv:
+                row = sb_inv
+
+        if not row:
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("SELECT * FROM invoices WHERE id = ?", (inv_id,))
+                r = c.fetchone()
+                if r:
+                    row = dict(r)
+                conn.close()
+            except Exception:
+                pass
+
         # Check Gateway Live Status
         dt_res, dt_status = DongtubeService.check_status(inv_id)
         
         is_paid = False
         if dt_status == 200 and dt_res.get("status") == "paid":
             is_paid = True
-        elif row and dict(row).get("status") == "paid":
+        elif row and row.get("status") == "paid":
             is_paid = True
 
         license_key = None
         now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if is_paid:
-            if row:
-                license_key = dict(row).get("license_key")
-                if not license_key:
-                    license_key = "CVLT-" + "-".join(uuid.uuid4().hex[:4].upper() for _ in range(3))
-                    c.execute("UPDATE invoices SET status='paid', license_key=?, paid_at=? WHERE id=?",
-                              (license_key, now_str, inv_id))
-                    conn.commit()
-            else:
+            license_key = row.get("license_key") if row else None
+            if not license_key:
                 license_key = "CVLT-" + "-".join(uuid.uuid4().hex[:4].upper() for _ in range(3))
-                amount = dt_res.get("amount", 10000)
-                fee = dt_res.get("fee", 0)
-                total = dt_res.get("total", amount + fee)
-                c.execute('''
-                    INSERT INTO invoices (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at, paid_at)
-                    VALUES (?, 'pembeli@kheireditz.com', 'Pembeli Resmi', 1, 'Produk Digital', ?, ?, ?, 'paid', ?, ?, ?)
-                ''', (inv_id, amount, fee, total, license_key, now_str, now_str))
-                conn.commit()
 
             # Supabase Cloud Sync
             if SupabaseService.is_configured():
@@ -403,20 +405,37 @@ class InvoiceController:
                     "paid_at": datetime.datetime.utcnow().isoformat() + "Z"
                 })
 
-        c.execute("SELECT * FROM invoices WHERE id = ?", (inv_id,))
-        updated_row = c.fetchone()
-        conn.close()
+            # SQLite Local Sync
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("SELECT id FROM invoices WHERE id = ?", (inv_id,))
+                if c.fetchone():
+                    c.execute("UPDATE invoices SET status='paid', license_key=?, paid_at=? WHERE id=?",
+                              (license_key, now_str, inv_id))
+                else:
+                    amount = dt_res.get("amount", 10000)
+                    fee = dt_res.get("fee", 0)
+                    total = dt_res.get("total", amount + fee)
+                    c.execute('''
+                        INSERT INTO invoices (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at, paid_at)
+                        VALUES (?, 'pembeli@kheireditz.com', 'Pembeli Resmi', 1, 'Produk Digital', ?, ?, ?, 'paid', ?, ?, ?)
+                    ''', (inv_id, amount, fee, total, license_key, now_str, now_str))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
 
-        invoice_data = dict(updated_row) if updated_row else dt_res
+        invoice_data = row if row else dt_res
 
         return {
             "success":     True,
             "invoice_id":  inv_id,
-            "status":      "paid" if is_paid else (dt_res.get("status") if dt_status == 200 else "pending"),
-            "license_key": license_key or invoice_data.get("license_key"),
-            "amount":      invoice_data.get("amount"),
-            "fee":         invoice_data.get("fee"),
-            "total":       invoice_data.get("total"),
+            "status":      "paid" if is_paid else (dt_res.get("status") if dt_status == 200 else (row.get("status") if row else "pending")),
+            "license_key": license_key or (invoice_data.get("license_key") if isinstance(invoice_data, dict) else None),
+            "amount":      invoice_data.get("amount") if isinstance(invoice_data, dict) else None,
+            "fee":         invoice_data.get("fee") if isinstance(invoice_data, dict) else None,
+            "total":       invoice_data.get("total") if isinstance(invoice_data, dict) else None,
             "invoice":     invoice_data
         }, 200
 
@@ -448,26 +467,29 @@ class InvoiceController:
             })
 
         # 2. SQLite Local Sync
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT id FROM invoices WHERE id = ?", (inv_id,))
-        exists = c.fetchone()
+        try:
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT id FROM invoices WHERE id = ?", (inv_id,))
+            exists = c.fetchone()
 
-        if exists:
-            c.execute('''
-                UPDATE invoices 
-                SET status = 'paid', license_key = ?, paid_at = ?, user_email = ?, customer_name = ?
-                WHERE id = ?
-            ''', (license_key, now_str, user_email, cust_name, inv_id))
-        else:
-            c.execute('''
-                INSERT INTO invoices
-                  (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at, paid_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)
-            ''', (inv_id, user_email, cust_name, prod_id, prod_title, amount, fee, total, license_key, now_str, now_str))
+            if exists:
+                c.execute('''
+                    UPDATE invoices 
+                    SET status = 'paid', license_key = ?, paid_at = ?, user_email = ?, customer_name = ?
+                    WHERE id = ?
+                ''', (license_key, now_str, user_email, cust_name, inv_id))
+            else:
+                c.execute('''
+                    INSERT INTO invoices
+                      (id, user_email, customer_name, product_id, product_title, amount, fee, total, status, license_key, created_at, paid_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?)
+                ''', (inv_id, user_email, cust_name, prod_id, prod_title, amount, fee, total, license_key, now_str, now_str))
 
-        conn.commit()
-        conn.close()
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
         return {
             "success":     True,
@@ -516,19 +538,39 @@ class AdminController:
 
     @staticmethod
     def stats():
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) FROM users WHERE role = 'user'")
-        total_users = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM products")
-        total_products = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM invoices WHERE status = 'paid'")
-        total_orders = c.fetchone()[0]
-        c.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'paid'")
-        total_revenue = c.fetchone()[0]
-        c.execute("SELECT * FROM invoices ORDER BY created_at DESC LIMIT 5")
-        recent = [dict(r) for r in c.fetchall()]
-        conn.close()
+        total_users = 0
+        total_products = 0
+        total_orders = 0
+        total_revenue = 0
+        recent = []
+
+        if SupabaseService.is_configured():
+            prods, _ = SupabaseService.list_products()
+            total_products = len(prods) if isinstance(prods, list) else 0
+
+            invs, _ = SupabaseService.list_invoices()
+            if isinstance(invs, list):
+                paid_invs = [i for i in invs if i.get('status') == 'paid']
+                total_orders = len(paid_invs)
+                total_revenue = sum(i.get('total', 0) for i in paid_invs)
+                recent = invs[:5]
+        else:
+            try:
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) FROM users WHERE role = 'user'")
+                total_users = c.fetchone()[0]
+                c.execute("SELECT COUNT(*) FROM products")
+                total_products = c.fetchone()[0]
+                c.execute("SELECT COUNT(*) FROM invoices WHERE status = 'paid'")
+                total_orders = c.fetchone()[0]
+                c.execute("SELECT COALESCE(SUM(total), 0) FROM invoices WHERE status = 'paid'")
+                total_revenue = c.fetchone()[0]
+                c.execute("SELECT * FROM invoices ORDER BY created_at DESC LIMIT 5")
+                recent = [dict(r) for r in c.fetchall()]
+                conn.close()
+            except Exception:
+                pass
 
         # Check Gateway Live Balance
         dt_bal, _ = DongtubeService.get_balance()
