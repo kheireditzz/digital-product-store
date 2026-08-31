@@ -109,15 +109,27 @@
       border-color: #f97316;
     }
 
+    /* Bulletproof Lock Body Scroll on Desktop & Mobile for Floating Screens */
+    html.modal-open,
+    body.modal-open {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      touch-action: none !important;
+      -webkit-overflow-scrolling: auto !important;
+    }
+
     /* Off-canvas Side Drawer */
     .side-drawer-overlay {
       background: rgba(9, 10, 14, 0.75);
       backdrop-filter: blur(8px);
       transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+      overscroll-behavior: contain !important;
     }
     .side-drawer-panel {
       transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       will-change: transform;
+      overscroll-behavior: contain !important;
     }
   </style>
 </head>
@@ -493,6 +505,8 @@
     function openSideDrawer() {
       const d = document.getElementById('side-drawer'), p = document.getElementById('side-drawer-panel');
       if (!d||!p) return;
+      document.documentElement.classList.add('modal-open');
+      document.body.classList.add('modal-open');
       d.classList.remove('opacity-0','invisible','pointer-events-none'); d.classList.add('opacity-100');
       setTimeout(() => p.classList.remove('translate-x-full'), 10);
       lucide.createIcons();
@@ -501,9 +515,31 @@
     function closeSideDrawer() {
       const d = document.getElementById('side-drawer'), p = document.getElementById('side-drawer-panel');
       if (!d||!p) return;
+      document.documentElement.classList.remove('modal-open');
+      document.body.classList.remove('modal-open');
       p.classList.add('translate-x-full'); d.classList.remove('opacity-100'); d.classList.add('opacity-0');
       setTimeout(() => d.classList.add('invisible','pointer-events-none'), 300);
     }
+
+    // Global listener: block touch dragging on background when drawer is open
+    document.addEventListener('touchmove', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto, textarea, input');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    // Global listener: block wheel scroll on background when drawer is open
+    document.addEventListener('wheel', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
 
     // ================= ENHANCED CLIENT SECURITY SHIELD =================
     (function() {

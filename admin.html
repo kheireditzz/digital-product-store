@@ -106,10 +106,23 @@
       color: #ffffff;
     }
 
+    /* Bulletproof Lock Body Scroll on Desktop & Mobile for Floating Screens */
+    html.modal-open,
+    body.modal-open {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      touch-action: none !important;
+      -webkit-overflow-scrolling: auto !important;
+    }
+
     .modal-overlay {
       background: rgba(9, 10, 14, 0.85);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
+      overscroll-behavior: contain !important;
+      -webkit-overflow-scrolling: touch !important;
+      touch-action: pan-y !important;
     }
 
     /* ================= SMOOTH SLIDING VIEWPORT ENGINE ================= */
@@ -1067,6 +1080,38 @@
       }
     }
 
+    // ================= BULLETPROOF BODY SCROLL LOCK FOR FLOATING SCREENS =================
+    function checkAndLockAdminScroll() {
+      const anyModalOpen = document.querySelectorAll('.modal-overlay:not(.hidden)').length > 0;
+      if (anyModalOpen) {
+        document.documentElement.classList.add('modal-open');
+        document.body.classList.add('modal-open');
+      } else {
+        document.documentElement.classList.remove('modal-open');
+        document.body.classList.remove('modal-open');
+      }
+    }
+
+    // Block touch drag on background when modal is open
+    document.addEventListener('touchmove', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto, textarea, input, select');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    // Block wheel on background when modal is open
+    document.addEventListener('wheel', function(e) {
+      if (document.body.classList.contains('modal-open')) {
+        const scrollable = e.target.closest('.overflow-y-auto, .overflow-x-auto');
+        if (!scrollable) {
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
     // ================= PRODUCT CRUD MODAL =================
     function openAddProductModal() {
       document.getElementById('modal-prod-heading').textContent = 'Tambah Produk Baru';
@@ -1079,6 +1124,7 @@
       document.getElementById('crud-stack').value = '';
       document.getElementById('crud-desc').value = '';
       document.getElementById('product-form-modal').classList.remove('hidden');
+      checkAndLockAdminScroll();
       lucide.createIcons();
     }
 
@@ -1096,11 +1142,13 @@
       document.getElementById('crud-stack').value = p.stack || '';
       document.getElementById('crud-desc').value = p.description || '';
       document.getElementById('product-form-modal').classList.remove('hidden');
+      checkAndLockAdminScroll();
       lucide.createIcons();
     }
 
     function closeProductFormModal() {
       document.getElementById('product-form-modal').classList.add('hidden');
+      checkAndLockAdminScroll();
     }
 
     async function handleProductSubmit(e) {
