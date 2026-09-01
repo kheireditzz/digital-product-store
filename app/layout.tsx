@@ -1,8 +1,9 @@
 import React from 'react'
+import './globals.css'
 
 export const metadata = {
-  title: 'Digital Product Store - Kheireditz',
-  description: 'Marketplace Produk Digital Terpercaya',
+  title: 'Kheireditz Store — Marketplace Produk & Aset Digital',
+  description: 'Source code, template video, e-book, dan aset digital terpercaya di Indonesia.',
 }
 
 export default function RootLayout({
@@ -12,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#0f172a', color: '#f8fafc' }}>
+      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased">
         {children}
       </body>
     </html>
