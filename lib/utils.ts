@@ -1,11 +1,9 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+export function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(" ")
 }
 
 export function formatRupiah(amount: number): string {
+  if (isNaN(amount) || amount === null || amount === undefined) return "Rp 0"
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
