@@ -2,12 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #020617;
-  --foreground: #f8fafc;
+@layer base {
+  body {
+    background-color: #090a0e;
+    color: #e2e8f0;
+  }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #090a0e; }
+::-webkit-scrollbar-thumb { background: #282b3d; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #f97316; }
+
+.clean-card {
+  background: #12131a;
+  border: 1px solid #282b3d;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.clean-card:hover {
+  background: #161722;
+  border-color: #f97316;
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px -5px rgba(0, 0, 0, 0.6), 0 0 20px -3px rgba(249, 115, 22, 0.2);
+}
+
+.btn-primary {
+  background: #f97316;
+  color: #ffffff;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: #ea580c;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #1e202e;
+  color: #f1f5f9;
+  border: 1px solid #2e3247;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  background: #25283b;
+  border-color: #424763;
+  color: #ffffff;
+}
+
+.input-field {
+  background: #0d0e14;
+  border: 1px solid #282b3d;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+.input-field:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
 }
